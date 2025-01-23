@@ -1,6 +1,5 @@
 ﻿// soundTest.cpp : Этот файл содержит функцию "main". Здесь начинается и заканчивается выполнение программы.
 //
-#include <fftw3.h>
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
@@ -9,21 +8,24 @@
 #include <vector>
 #include <comdef.h>
 #include <cmath>
-#include <algorithm>
-#include <mfapi.h>
-#include <mfidl.h>
-#include <mfobjects.h>
-#include <mfplay.h>
 
-void ProcessAudioData(std::vector<BYTE>& processedData, BYTE* buffer, UINT32 numFrames, UINT32 numChannels, float gain) {
+
+void ProcessAudioData(std::vector<BYTE>& processedData, BYTE* buffer, UINT32 numFrames, UINT32 numChannels,UINT32 sampleRate, float gain) {
     // Преобразуем буфер в float* для обработки
     float* floatBuffer = reinterpret_cast<float*>(buffer);
 
     // Для каждого сэмпла в буфере
-    for (UINT32 i = 0; i < numFrames * numChannels; ++i) {
+    for (UINT32 i = 0; i < numFrames * numChannels/2; ++i) {
         // Применяем усиление
-        float audio = floatBuffer[i] * gain;
-
+        float audio;
+        float freq = (float)i * sampleRate / (numFrames * numChannels);
+        if (freq < 1000) {
+            audio = floatBuffer[i] * gain;
+        }
+        else
+        {
+            audio = floatBuffer[i];
+        }
         // Копируем результат в processedData
         // Преобразуем результат обратно в байты и добавляем в processedData
         processedData.push_back(reinterpret_cast<BYTE*>(&audio)[0]);
@@ -110,7 +112,7 @@ int main()
     //    return 0;
     //#pragma endregion
     IMMDevice* pDevice = getAudioEndpointDevice();
-    #pragma region capture client
+#pragma region capture client
     IAudioClient* pAudioClient = nullptr;
     HRESULT hr = pDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(&pAudioClient));
     if (FAILED(hr)) {
@@ -205,86 +207,42 @@ int main()
     UINT32 numFramesAvailable;
     DWORD flags;
 
-    std::vector<double> processedData;
+    std::vector<BYTE> processedData;
     //for (int i = 0; i < 1000; ++i) {  // Пример 100 итераций
     while (true)
     {
-    hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, nullptr, nullptr);
+        hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, nullptr, nullptr);
         if (FAILED(hr)) {
             std::cerr << "Failed to get buffer!" << std::endl;
             break;
         }
-        if (pData != nullptr)
-        {
-            short* pcmData = reinterpret_cast<short*>(pData);
 
-            processedData.resize(numFramesAvailable);
-
-            // Нормализуем данные в диапазон [-1.0, 1.0]
-            for (UINT32 i = 0; i < numFramesAvailable; ++i) {
-                processedData[i] = pcmData[i] / 32768.0f; // Преобразуем 16-битные значения в float
-            }
-            int N = processedData.size();
-            fftw_complex* fftData = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * N);
-            fftw_plan planForward = fftw_plan_dft_r2c_1d(N, processedData.data(), fftData, FFTW_ESTIMATE);
-            //todo пофиксить баг
-            //// Применяем FFT
-            fftw_execute(planForward);
-            for (int i = 0; i < N / 2 + 1; ++i) {
-                float freq = (float)i * pFormat->nSamplesPerSec / N;
-                if (freq > 10000) {
-                    fftData[i][0] *= 2.5;  // Усиливаем реальную часть
-                    fftData[i][1] *= 2.5;  // Усиливаем мнимую часть
-                }
-            }
-            fftw_plan planBackward = fftw_plan_dft_c2r_1d(N, fftData, processedData.data(), FFTW_ESTIMATE);
-            fftw_execute(planBackward);
-
-            //// Нормализуем результат
-            /*for (int i = 0; i < N; ++i) {
-                processedData[i] /= N;
-            }*/
-            fftw_destroy_plan(planForward);
-            fftw_destroy_plan(planBackward);
-            fftw_free(fftData);
-
-
-            // Применение обработки (например, усиление)
-            //ProcessAudioData(processedData ,pData, numFramesAvailable, pFormat->nChannels, 1.1f);  // Увеличение громкости на 1.5x
-            // Отправляем обработанные данные на вывод
-            BYTE* pRenderData = nullptr;
-            hr = pAudioRender->GetBuffer(numFramesAvailable, &pRenderData);
-            if (FAILED(hr)) {
-                std::cerr << "Failed to get render buffer!" << std::endl;
-                break;
-            }
-
-
-            short* processedPcmData = reinterpret_cast<short*>(pRenderData);
-            // Преобразуем данные обратно в 16-битные целые числа, с учетом нормализации в диапазоне [-1, 1]
-            for (size_t i = 0; i < processedData.size(); ++i) {
-                processedPcmData[i] = static_cast<short>(std::clamp(processedData[i], -32768.0, 32767.0));
-            }
-
-
-            // Копируем обработанные данные в буфер рендеринга
-            //memcpy(pRenderData, processedData.data(), processedData.size());
-
-            // Освобождаем буфер захвата
-            hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
-            if (FAILED(hr)) {
-                std::cerr << "Failed to release buffer!" << std::endl;
-                break;
-            }
-
-            // Отправляем буфер на воспроизведение
-            hr = pAudioRender->ReleaseBuffer(numFramesAvailable, 0);
-            if (FAILED(hr)) {
-                std::cerr << "Failed to release render buffer!" << std::endl;
-                break;
-            }
-            processedData.clear();
+        // Применение обработки (например, усиление)
+        ProcessAudioData(processedData, pData, numFramesAvailable, pFormat->nChannels,pFormat->nSamplesPerSec,2.5f);  // Увеличение громкости на 1.5x
+        // Отправляем обработанные данные на вывод
+        BYTE* pRenderData = nullptr;
+        hr = pAudioRender->GetBuffer(numFramesAvailable, &pRenderData);
+        if (FAILED(hr)) {
+            std::cerr << "Failed to get render buffer!" << std::endl;
+            break;
         }
+        // Копируем обработанные данные в буфер рендеринга
+        memcpy(pRenderData, processedData.data(), processedData.size());
+
+        // Освобождаем буфер захвата
+        hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
+        if (FAILED(hr)) {
+            std::cerr << "Failed to release buffer!" << std::endl;
+            break;
+        }
+
+        // Отправляем буфер на воспроизведение
+        hr = pAudioRender->ReleaseBuffer(numFramesAvailable, 0);
+        if (FAILED(hr)) {
+            std::cerr << "Failed to release render buffer!" << std::endl;
+            break;
+        }
+        processedData.clear();
     }
     pAudioClient->Stop();
     pCaptureClient->Release();
@@ -296,4 +254,3 @@ int main()
     return 0;
 }
 
- 
