@@ -21,12 +21,12 @@ const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 
 void ProcessAudioData(BYTE* processedData, BYTE* buffer, UINT32 numFrames, UINT32 numChannels,UINT32 sampleRate, float gain) {
     std::vector<float> processingData;
-    processingData.resize(numFrames);
-    short* pcmData = reinterpret_cast<INT16*>(buffer);
-    for (UINT32 i = 0; i < numFrames; ++i) {
+    processingData.resize(numFrames*numChannels*sizeof(short));
+    int N = processingData.size();
+    short* pcmData = reinterpret_cast<short*>(buffer);
+    for (UINT32 i = 0; i < N; ++i) {
         processingData[i] = pcmData[i] / 32768.0f; // Преобразуем 16-битные значения в float
     }
-    int N = processingData.size();
     fftwf_complex* fftData = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * N);
     fftwf_plan planForward = fftwf_plan_dft_r2c_1d(N, processingData.data(), fftData, FFTW_ESTIMATE);
     //todo пофиксить баг
@@ -374,6 +374,7 @@ int main()
             hr = pAudioRender->GetBuffer(numFramesAvailable, &pRenderData);
             if (SUCCEEDED(hr))
             {
+               // memcpy(pRenderData, pData, numFramesAvailable * pFormat->nChannels * sizeof(float));
                 ProcessAudioData(pRenderData, pData, numFramesAvailable, pFormat->nChannels, pFormat->nSamplesPerSec, 1.5f);  // Увеличение громкости на 1.5x
                 hr = pAudioRender->ReleaseBuffer(numFramesAvailable, 0);
                 if (FAILED(hr)) {
