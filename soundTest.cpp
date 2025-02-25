@@ -20,39 +20,32 @@ const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
 const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 
 void ProcessAudioData(BYTE* processedData, BYTE* buffer, UINT32 numFrames, UINT32 numChannels,UINT32 sampleRate, float gain) {
-    std::vector<float> processingData;
-    processingData.resize(numFrames*numChannels*sizeof(short));
-    int N = processingData.size();
-    short* pcmData = reinterpret_cast<short*>(buffer);
-    for (UINT32 i = 0; i < N; ++i) {
-        processingData[i] = pcmData[i] / 32768.0f; // Преобразуем 16-битные значения в float
+    int n = numFrames * numChannels;
+    fftwf_complex* fftInput = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)*n);
+    fftwf_complex* fftOutput = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)*n);
+    fftwf_plan fftwPlan = fftwf_plan_dft_1d(n,fftInput,fftOutput,FFTW_FORWARD,FFTW_ESTIMATE);
+    float* inputBuffer = (float*)buffer;
+    for (int i = 0; i < n; ++i) {
+        fftInput[i][0] = inputBuffer[i]; // Реальная часть
+        fftInput[i][1] = 0; // Мнимая часть
     }
-    fftwf_complex* fftData = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * N);
-    fftwf_plan planForward = fftwf_plan_dft_r2c_1d(N, processingData.data(), fftData, FFTW_ESTIMATE);
-    //todo пофиксить баг
-    //// Применяем FFT
-    fftwf_execute(planForward);
-    /*for (int i = 0; i < N / 2 + 1; ++i) {
-        float freq = (float)i * sampleRate / N;
-        if (freq < 1000) {
-            fftData[i][0] *= gain;  // Усиливаем реальную часть
-            fftData[i][1] *= gain;  // Усиливаем мнимую часть
-        }
-    }*/
-    fftwf_plan planBackward = fftwf_plan_dft_c2r_1d(N, fftData, processingData.data(), FFTW_ESTIMATE);
-    fftwf_execute(planBackward);
-    fftwf_destroy_plan(planForward);
-    fftwf_destroy_plan(planBackward);
-    fftwf_free(fftData);
-    for (int i = 0; i < N; ++i) {
-        processingData[i] /= N;
+
+    fftwf_execute(fftwPlan);
+   
+   for (int i = 0; i < 1000 / (sampleRate / n); ++i) { // Усиливаем только нижние частоты
+        fftOutput[i][0] *= gain; // Реальная часть
+        fftOutput[i][1] *= gain; // Мнимая часть
     }
-    short* processedPcmData = reinterpret_cast<short*>(processedData);
-    // Преобразуем данные обратно в 16-битные целые числа, с учетом нормализации в диапазоне [-1, 1]
-    for (size_t i = 0; i < processingData.size(); ++i) {
-        processedPcmData[i] = static_cast<short>(std::clamp(processingData[i]* 32767.0f, -32768.0f, 32767.0f));
+    
+    fftwf_complex* out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * n);
+    fftwf_execute(fftwf_plan_dft_1d(n, fftOutput, out, FFTW_BACKWARD, FFTW_ESTIMATE));
+    float* outputBuffer = (float*)processedData;
+    for (int i = 0; i < n; ++i) {
+        outputBuffer[i] = std::clamp(out[i][0]/n,-32760.f, 32760.f); // Реальная часть, регулирование значений в районе 16 бит (избавление от треска)
     }
 }
+
+#pragma region Get devices
 HRESULT GetVACDevice(IMMDevice** ppDevice)
 {
     HRESULT hr = S_OK;
@@ -253,12 +246,11 @@ void GetDefaultAudioEndpointDevice(IMMDevice** pDevice)
     }
     pDeviceEnumerator->Release();
 }
-
+#pragma endregion
 
 int main()
 {
     IMMDevice* pDevice = nullptr;
-    //GetDefaultAudioEndpointDevice(&pDevice);
     GetRenderDevice(&pDevice);
     IMMDevice* pVACDevice = nullptr;
     GetVACDevice(&pVACDevice);
@@ -357,9 +349,6 @@ int main()
     BYTE* pData = nullptr;
     UINT32 numFramesAvailable;
     DWORD flags;
-
-    //std::vector<BYTE> processedData;
-    //for (int i = 0; i < 1000; ++i) {  // Пример 100 итераций
     while (true)
     {
         hr = pCaptureClient->GetBuffer(&pData, &numFramesAvailable, &flags, nullptr, nullptr);
@@ -369,23 +358,19 @@ int main()
         }
         if (pData != nullptr)
         {
-            // Применение обработки (например, усиление)
             BYTE* pRenderData = nullptr;
             hr = pAudioRender->GetBuffer(numFramesAvailable, &pRenderData);
             if (SUCCEEDED(hr))
             {
-               // memcpy(pRenderData, pData, numFramesAvailable * pFormat->nChannels * sizeof(float));
-                ProcessAudioData(pRenderData, pData, numFramesAvailable, pFormat->nChannels, pFormat->nSamplesPerSec, 1.5f);  // Увеличение громкости на 1.5x
+                ProcessAudioData(pRenderData, pData, numFramesAvailable, pFormat->nChannels, pFormat->nSamplesPerSec, 2.f);  // Увеличение громкости на 1.5x
                 hr = pAudioRender->ReleaseBuffer(numFramesAvailable, 0);
                 if (FAILED(hr)) {
                     std::cerr << "Failed to release render buffer!" << std::endl;
                     break;
                 }
             }
-        }// Отправляем обработанные данные на вывод
-       
+        }
 
-        // Освобождаем буфер захвата
         hr = pCaptureClient->ReleaseBuffer(numFramesAvailable);
         if (FAILED(hr)) {
             std::cerr << "Failed to release buffer!" << std::endl;
