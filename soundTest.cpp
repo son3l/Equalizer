@@ -16,6 +16,7 @@
 #include <mfplay.h>
 #include <propkey.h> 
 #include <Functiondiscoverykeys_devpkey.h>
+#include <cstdlib>
 const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
 const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 
@@ -41,7 +42,7 @@ void ProcessAudioData(BYTE* processedData, BYTE* buffer, UINT32 numFrames, UINT3
     fftwf_execute(fftwf_plan_dft_1d(n, fftOutput, out, FFTW_BACKWARD, FFTW_ESTIMATE));
     float* outputBuffer = (float*)processedData;
     for (int i = 0; i < n; ++i) {
-        outputBuffer[i] = std::clamp(out[i][0]/n,-32760.f, 32760.f); // Реальная часть, регулирование значений в районе 16 бит (избавление от треска)
+        outputBuffer[i] = std::clamp(out[i][0]/n,-32620.f, 32620.f); // Реальная часть, регулирование значений в районе 16 бит (избавление от треска)
     }
 }
 
@@ -346,6 +347,7 @@ int main()
         CoUninitialize();
         return 0;
     }
+    system(".\\nircmd\\nircmd.exe setdefaultsounddevice \"Line 1\" 1");
     BYTE* pData = nullptr;
     UINT32 numFramesAvailable;
     DWORD flags;

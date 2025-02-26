@@ -115,7 +115,7 @@
       <AdditionalLibraryDirectories>C:\Users\Bulavko\source\repos\son3l\Equalizer\fft\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(ProjectDir)fft\bin\*.*" "$(TargetDir)"</Command>
+      <Command>xcopy /d /y "$(ProjectDir)fft\dll\*.*" "$(TargetDir)" &amp; xcopy "$(ProjectDir)nircmd" "$(TargetDir)nircmd" /E /I /H /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -139,7 +139,7 @@
       <AdditionalDependencies>libfftw3f-3.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /d /y "$(ProjectDir)fft\bin\*.*" "$(TargetDir)"</Command>
+      <Command>xcopy /d /y "$(ProjectDir)fft\dll\*.*" "$(TargetDir)" &amp; xcopy "$(ProjectDir)nircmd" "$(TargetDir)nircmd" /E /I /H /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
