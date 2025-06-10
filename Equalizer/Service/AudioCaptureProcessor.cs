@@ -23,6 +23,7 @@ namespace Equalizer.Service
                 .EnumerateAudioEndPoints(DataFlow.Render,DeviceState.All)
                 .First(item=>item.FriendlyName.Contains("Virtual"))
                 );
+            // TODO сделать отмену остановки при переключении устройства
             _CaptureDevice.RecordingStopped += (s,e) => 
             {
                 IsRunning = false;
@@ -62,8 +63,8 @@ namespace Equalizer.Service
             {
                 if (i * freq <= 2000)
                 {
-                    fftData[i].X *= 1.7f;
-                    fftData[i].Y *= 1.7f;
+                    fftData[i].X *= (float)unchecked(GetMultiplier(3));
+                    fftData[i].Y *= (float)unchecked(GetMultiplier(3));
                 }
             }
             //обратно комплексное в флоат и потом в байты на рендер
@@ -79,6 +80,11 @@ namespace Equalizer.Service
 
             byte[] processedBuffer = ConvertFloatToBytes(processed, _OutDevice.OutputWaveFormat);
             return processedBuffer;
+        }
+        private double GetMultiplier(int decibells) 
+        {
+            double multiplier = Math.Pow(10, decibells / 10d);
+            return Math.Pow(10,decibells/10d);
         }
         private byte[] ConvertFloatToBytes(float[] samples, WaveFormat waveFormat)
         {
