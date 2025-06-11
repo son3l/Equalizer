@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Equalizer.Service;
 using NAudio.CoreAudioApi;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Equalizer.ViewModels
 {
@@ -13,28 +14,26 @@ namespace Equalizer.ViewModels
         [ObservableProperty]
         private MMDevice _SelectedDevice;
         [ObservableProperty]
-        private double _Lowfreqline; 
         private DSProcessor _Processor;
         public MainWindowViewModel()
         {
-            _Processor = new();
-             Devices = [.. DSProcessor.GetDevices()];
-        }
-        partial void OnLowfreqlineChanged(double value)
-        {
-            _Processor.lowfreqline = (int)unchecked(value);
+            Processor = new();
+            Devices = [.. DSProcessor.GetDevices()];
+            //тестовые полосы
+            Processor.FrequencyLines.Add(new Models.FrequencyLine(50,800));
+            Processor.FrequencyLines.Add(new Models.FrequencyLine(800,1800));
         }
         [RelayCommand]
         private void Play()
         {
-            if (!_Processor.Initialized)
-                _Processor.Initialize(SelectedDevice);
-            _Processor.StartCapture();
+            if (!Processor.Initialized)
+                Processor.Initialize(SelectedDevice);
+            Processor.StartCapture();
         }
         [RelayCommand]
         private void Stop()
         {
-            _Processor.StopCapture();
+            Processor.StopCapture();
         }
     }
 }

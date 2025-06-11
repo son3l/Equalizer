@@ -26,14 +26,35 @@
             Width="200"
             Command="{Binding PlayCommand}"
             Content="Play" />
-		<Button
+        <Button
             Width="200"
             Command="{Binding StopCommand}"
             Content="Stop" />
-        <Slider
-            Maximum="6"
-            Minimum="-6"
-            Value="{Binding Lowfreqline}" />
+        <ItemsControl ItemsSource="{Binding Processor.FrequencyLines}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="5" Spacing="5">
+                        <StackPanel
+                            HorizontalAlignment="Center"
+                            Orientation="Horizontal"
+                            Spacing="5">
+                            <TextBlock Text="{Binding From}" />
+                            <TextBlock Text="-" />
+                            <TextBlock Text="{Binding To}" />
+                        </StackPanel>
+                        <Slider
+                            Width="200"
+                            Maximum="9"
+                            Minimum="-9"
+                            Value="{Binding GainDecibells}" />
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </StackPanel>
-
 </Window>

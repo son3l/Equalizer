@@ -1,6 +1,8 @@
-﻿using NAudio.CoreAudioApi;
+﻿using Equalizer.Models;
+using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,11 +18,15 @@ namespace Equalizer.Service
         private WasapiOut _OutDevice;
         private BufferedWaveProvider _BufferedWaveProvider;
         private bool _IsDisposed;
-        public bool IsRunning => IsCaptureDeviceRunning || IsOutDeviceRunning;
-        private bool IsOutDeviceRunning;
-        private bool IsCaptureDeviceRunning;
-        public int lowfreqline;
-        public bool Initialized;
+        private bool _IsOutDeviceRunning;
+        private bool _IsCaptureDeviceRunning;
+        private readonly FrequencyLine _DefaultLine;
+        public bool Initialized { get; private set; }
+        public bool IsRunning => _IsCaptureDeviceRunning || _IsOutDeviceRunning;
+        /// <summary>
+        /// Представляет собой коллекцию полос эквалайзера
+        /// </summary>
+        public List<FrequencyLine> FrequencyLines { get; private set; }
         /// <summary>
         /// инициализирует устройство вывода и устройство для захвата
         /// </summary>
@@ -33,7 +39,7 @@ namespace Equalizer.Service
                 // TODO сделать отмену остановки при переключении устройства
                 _CaptureDevice.RecordingStopped += (s, e) =>
                 {
-                    IsCaptureDeviceRunning = false;
+                    _IsCaptureDeviceRunning = false;
                 };
                 _CaptureDevice.DataAvailable += (s, e) =>
                 {
@@ -47,9 +53,9 @@ namespace Equalizer.Service
                 };
                 _OutDevice = new WasapiOut(outDevice, AudioClientShareMode.Shared, false, 100);
                 _OutDevice.Init(_BufferedWaveProvider);
-                _OutDevice.PlaybackStopped += (s,e) => 
+                _OutDevice.PlaybackStopped += (s, e) =>
                 {
-                    IsOutDeviceRunning = false;
+                    _IsOutDeviceRunning = false;
                 };
             }
         }
@@ -65,38 +71,35 @@ namespace Equalizer.Service
         }
         private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
-            float[] audioData = ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded);
-
-
-            //под сомнением (дерьмеще какое то реально)
-            Complex[] fftData = new Complex[audioData.Length];
-            for (int i = 0; i < audioData.Length; i++)
+            if (FrequencyLines.Count != 0)
             {
-                fftData[i] = new Complex() { X = audioData[i], Y = 0 };
-            }
-            FastFourierTransform.FFT(true, (int)Math.Log2(audioData.Length), fftData);
-            float freq = _CaptureDevice.WaveFormat.SampleRate / (float)fftData.Length;
-            for (int i = 0; i < audioData.Length; i++)
-            {
-                if (i * freq <= 2000)
+                float[] audioData = ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded);
+                Complex[] fftData = new Complex[audioData.Length];
+                for (int i = 0; i < audioData.Length; i++)
                 {
-                    fftData[i].X *= (float)unchecked(GetMultiplier(lowfreqline));
-                    fftData[i].Y *= (float)unchecked(GetMultiplier(lowfreqline));
+                    fftData[i] = new Complex() { X = audioData[i], Y = 0 };
                 }
+                FastFourierTransform.FFT(true, (int)Math.Log2(audioData.Length), fftData);
+                float freq = _CaptureDevice.WaveFormat.SampleRate / (float)fftData.Length;
+                FrequencyLine CurrentLine;
+                for (int i = 0; i < audioData.Length; i++)
+                {
+                    CurrentLine = FrequencyLines.FirstOrDefault(item => item.From < i * freq && item.To > i * freq, _DefaultLine);
+                    fftData[i].X *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
+                    fftData[i].Y *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
+                }
+                FastFourierTransform.FFT(false, (int)Math.Log2(audioData.Length), fftData);
+                float[] processed = new float[audioData.Length];
+                for (int i = 0; i < processed.Length; i++)
+                {
+                    processed[i] = fftData[i].X;
+                }
+                return ConvertFloatToBytes(processed, _OutDevice.OutputWaveFormat);
             }
-            //обратно комплексное в флоат и потом в байты на рендер
-            FastFourierTransform.FFT(false, (int)Math.Log2(audioData.Length), fftData);
-            float[] processed = new float[audioData.Length];
-            for (int i = 0; i < processed.Length; i++)
+            else 
             {
-                processed[i] = fftData[i].X;
+                return inputBuffer;
             }
-
-
-
-
-            byte[] processedBuffer = ConvertFloatToBytes(processed, _OutDevice.OutputWaveFormat);
-            return processedBuffer;
         }
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала
@@ -105,6 +108,7 @@ namespace Equalizer.Service
         {
             return Math.Pow(10, decibells / 10d);
         }
+
         #region Конвертации
         /// <summary>
         /// Преобразует float[] в byte[] учитывая формат аудио
@@ -175,6 +179,7 @@ namespace Equalizer.Service
             return samples;
         }
         #endregion
+
         /// <summary>
         /// Начинает захват, преобразование и передачу на устройство вывода аудио сигнала
         /// </summary>
@@ -186,9 +191,9 @@ namespace Equalizer.Service
             if (!IsRunning)
             {
                 _CaptureDevice.StartRecording();
-                IsCaptureDeviceRunning = true;
+                _IsCaptureDeviceRunning = true;
                 _OutDevice.Play();
-                IsOutDeviceRunning = true;
+                _IsOutDeviceRunning = true;
             }
         }
         /// <summary>
@@ -212,6 +217,11 @@ namespace Equalizer.Service
                 _CaptureDevice?.Dispose();
                 _OutDevice?.Dispose();
             }
+        }
+        public DSProcessor()
+        {
+            FrequencyLines = [];
+            _DefaultLine = new(0,0);
         }
         /// <summary>
         /// Возвращает список устройств доступных для вывода аудио сигнала
