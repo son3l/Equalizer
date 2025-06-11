@@ -26,6 +26,14 @@
             Width="200"
             Command="{Binding PlayCommand}"
             Content="Play" />
+		<Button
+            Width="200"
+            Command="{Binding StopCommand}"
+            Content="Stop" />
+        <Slider
+            Maximum="6"
+            Minimum="-6"
+            Value="{Binding Lowfreqline}" />
     </StackPanel>
 
 </Window>

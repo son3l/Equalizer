@@ -12,20 +12,29 @@ namespace Equalizer.ViewModels
         public ObservableCollection<MMDevice> _Devices;
         [ObservableProperty]
         private MMDevice _SelectedDevice;
-        private AudioCaptureProcessor _Processor;
+        [ObservableProperty]
+        private double _Lowfreqline; 
+        private DSProcessor _Processor;
         public MainWindowViewModel()
         {
-            Devices = [.. AudioCaptureProcessor.GetDevices()];
+            _Processor = new();
+             Devices = [.. DSProcessor.GetDevices()];
         }
-        partial void OnSelectedDeviceChanged(MMDevice value)
+        partial void OnLowfreqlineChanged(double value)
         {
-            _Processor?.Dispose();
-            _Processor = new(SelectedDevice);
+            _Processor.lowfreqline = (int)unchecked(value);
         }
         [RelayCommand]
         private void Play()
         {
+            if (!_Processor.Initialized)
+                _Processor.Initialize(SelectedDevice);
             _Processor.StartCapture();
+        }
+        [RelayCommand]
+        private void Stop()
+        {
+            _Processor.StopCapture();
         }
     }
 }
