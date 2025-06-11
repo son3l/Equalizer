@@ -179,7 +179,31 @@ namespace Equalizer.Service
             return samples;
         }
         #endregion
-
+        /// <summary>
+        /// Диспозит текущие устройства захвата и вывода и записывает новые
+        /// </summary>
+        public void ChangeDevices(MMDevice outDevice, MMDevice captureDevice) 
+        {
+            if (Initialized && !_IsDisposed)
+            {
+                StopCapture();
+                _BufferedWaveProvider.ClearBuffer();
+                _CaptureDevice?.Dispose();
+                _OutDevice?.Dispose();
+            }
+            _IsDisposed = false;
+            Initialized = false;
+            Initialize(outDevice,captureDevice);
+        }
+        /// <summary>
+        /// Диспозит текущие устройства захвата и вывода и записывает новое устройство вывода (устройство захвата по дефолту VAC)
+        /// </summary>
+        public void ChangeDevices(MMDevice outDevice)
+        {
+            ChangeDevices(outDevice, new MMDeviceEnumerator()
+                      .EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
+                      .First(item => item.FriendlyName.Contains("Virtual")));
+        }
         /// <summary>
         /// Начинает захват, преобразование и передачу на устройство вывода аудио сигнала
         /// </summary>
@@ -209,7 +233,7 @@ namespace Equalizer.Service
         }
         public void Dispose()
         {
-            if (!_IsDisposed)
+            if (!_IsDisposed && Initialized)
             {
                 _IsDisposed = true;
                 StopCapture();
