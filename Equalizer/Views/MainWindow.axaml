@@ -6,59 +6,68 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Equalizer.ViewModels"
     Title="Equalizer"
-    d:DesignHeight="450"
-    d:DesignWidth="800"
+    d:DesignHeight="650"
+    d:DesignWidth="1200"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/avalonia-logo.ico"
     mc:Ignorable="d">
     <Design.DataContext>
         <vm:MainWindowViewModel />
     </Design.DataContext>
-    <StackPanel
-        HorizontalAlignment="Center"
-        VerticalAlignment="Center"
-        Spacing="5">
-        <ComboBox
-            Width="200"
-            ItemsSource="{Binding Devices}"
-            SelectedItem="{Binding SelectedDevice}" />
-        <Button
-            Width="200"
-            Command="{Binding PlayCommand}"
-            Content="Play" />
-        <Button
-            Width="200"
-            Command="{Binding StopCommand}"
-            Content="Stop" />
-		<Button
-		   Width="200"
-		   Command="{Binding DiscardAllLinesCommand}"
-		   Content="Discard" />
-        <ItemsControl ItemsSource="{Binding Processor.FrequencyLines}">
-            <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <StackPanel Orientation="" />
-                </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="5" Spacing="5">
-                        <StackPanel
-                            HorizontalAlignment="Center"
-                            Orientation="Horizontal"
-                            Spacing="5">
-                            <TextBlock Text="{Binding From}" />
-                            <TextBlock Text="-" />
-                            <TextBlock Text="{Binding To}" />
-                        </StackPanel>
-                        <Slider
-                            Width="200"
-                            Maximum="9"
-                            Minimum="-9"
-                            Value="{Binding GainDecibells}" />
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-    </StackPanel>
+    <Interaction.Behaviors>
+        <EventTriggerBehavior EventName="Closing">
+            <InvokeCommandAction Command="{Binding ClosingCommand}" />
+        </EventTriggerBehavior>
+    </Interaction.Behaviors>
+    <Grid RowDefinitions="30,100,*">
+        <Menu Grid.Row="0">
+            <MenuItem Header="Полосы">
+                <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
+                <MenuItem Command="{Binding SaveLinesCommand}" Header="Сохранить" />
+                <MenuItem Command="{Binding LoadLinesCommand}" Header="Загрузить" />
+            </MenuItem>
+        </Menu>
+        <StackPanel
+            Grid.Row="1"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Orientation="Horizontal"
+            Spacing="5">
+            <ComboBox
+                Width="200"
+                ItemsSource="{Binding Devices}"
+                SelectedItem="{Binding SelectedDevice}" />
+            <Button
+                Width="200"
+                Command="{Binding PlayCommand}"
+                Content="Play" />
+            <Button
+                Width="200"
+                Command="{Binding StopCommand}"
+                Content="Stop" />
+        </StackPanel>
+        <!--  TODO сделать анимацию спектра сзади от полос  -->
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Visible">
+            <ItemsControl ItemsSource="{Binding Processor.FrequencyLines}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="10" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes="FrequencyBorder">
+                            <StackPanel Margin="5" Spacing="5">
+                                <TextBlock Text="{Binding Name}" />
+                                <Slider
+                                    Maximum="9"
+                                    Minimum="-9"
+                                    Value="{Binding GainDecibells}" />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
 </Window>

@@ -25,5 +25,6 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Xaml.Behaviors.Interactions" Version="11.3.0.10" />
   </ItemGroup>
 </Project>

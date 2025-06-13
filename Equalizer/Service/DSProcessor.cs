@@ -4,6 +4,7 @@ using NAudio.Dsp;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Equalizer.Service
@@ -25,7 +26,7 @@ namespace Equalizer.Service
         /// <summary>
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
-        public List<FrequencyLine> FrequencyLines { get; private set; }
+        public ObservableCollection<FrequencyLine> FrequencyLines { get; private set; }
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
         /// </summary>
@@ -42,9 +43,6 @@ namespace Equalizer.Service
         /// Буфер для чтения данных
         /// </summary>
         private readonly List<float> _InputBuffer;
-
-
-
         /// <summary>
         /// Инициализирует устройство вывода и устройство для захвата
         /// </summary>
@@ -55,6 +53,7 @@ namespace Equalizer.Service
                 Initialized = true;
                 _CaptureDevice = new WasapiLoopbackCapture(captureDevice) { ShareMode = AudioClientShareMode.Shared };
                 // TODO сделать отмену остановки при переключении устройства и переключениями видосов в браузере (хз почему он останавливается, в ++ не выключался)
+                // проблема с касперским (при отключении касперского отключение не происходит)
                 _CaptureDevice.RecordingStopped += (s, e) =>
                 {
                     _IsCaptureDeviceRunning = false;
