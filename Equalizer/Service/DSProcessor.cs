@@ -2,10 +2,8 @@
 using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 namespace Equalizer.Service
@@ -28,8 +26,6 @@ namespace Equalizer.Service
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
         public List<FrequencyLine> FrequencyLines { get; private set; }
-        //---------------------------------------------------------------------------------------
-        //для overlap (потом привести к нормальному виду)
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
         /// </summary>
@@ -37,15 +33,20 @@ namespace Equalizer.Service
         /// <summary>
         /// Размер перекрытия (50%)
         /// </summary>
-        private const int HopSize = FrameSize / 2; 
-        private float[] _overlapBuffer = new float[FrameSize]; // для хранения наложения
-        private List<float> _inputBuffer = new(); // накопитель входных данных
-        //---------------------------------------------------------------------------------------
+        private const int HopSize = FrameSize / 2;
+        /// <summary>
+        /// Буфер для перекрытия кусков
+        /// </summary>
+        private readonly float[] _OverlapBuffer;
+        /// <summary>
+        /// Буфер для чтения данных
+        /// </summary>
+        private readonly List<float> _InputBuffer;
 
 
 
         /// <summary>
-        /// инициализирует устройство вывода и устройство для захвата
+        /// Инициализирует устройство вывода и устройство для захвата
         /// </summary>
         public void Initialize(MMDevice outDevice, MMDevice captureDevice)
         {
@@ -77,7 +78,7 @@ namespace Equalizer.Service
             }
         }
         /// <summary>
-        /// инициализирует устройство вывода и по дефолту ищет устройство для захвата VAC
+        /// Инициализирует устройство вывода и по дефолту ищет устройство для захвата VAC
         /// </summary>
         public void Initialize(MMDevice outDevice)
         {
@@ -88,102 +89,61 @@ namespace Equalizer.Service
         }
         private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
-            List<float> outputSamples = [];
+            //TODO сделать чет с GC (срабатывает раз в 3 сек на 1 поколении)
+            List<float> OutputSamples = [];
             if (FrequencyLines.Count != 0)
             {
-                float[] audioData = ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded);
-                _inputBuffer.AddRange(audioData);
-                //--------------------------------------------------------------------------------
-                while (_inputBuffer.Count >= FrameSize)
+                // считываем данные в инпут буфер
+                _InputBuffer.AddRange(ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded));
+                while (_InputBuffer.Count >= FrameSize)
                 {
-                    // 1. Берем FrameSize сэмплов
-                    float[] frame = [.. _inputBuffer.GetRange(0, FrameSize)];
-
-                    // 2. Применяем Hann-окно
+                    // берем кусок в 1024 элемента из инпут буфера
+                    float[] Frame = [.. _InputBuffer.GetRange(0, FrameSize)];
+                    // добавляем окно в кусок элементов
                     for (int i = 0; i < FrameSize; i++)
                     {
-                        frame[i] *= (float)unchecked(FastFourierTransform.HannWindow(i, FrameSize));
+                        Frame[i] *= (float)unchecked(FastFourierTransform.HannWindow(i, FrameSize));
                     }
-
-                    // 3. FFT
-                    Complex[] fftData = new Complex[FrameSize];
+                    // создаем массив комплексных чисел для бпф
+                    Complex[] FFTData = new Complex[FrameSize];
                     for (int i = 0; i < FrameSize; i++)
                     {
-                        fftData[i] = new Complex { X = frame[i], Y = 0 };
+                        FFTData[i] = new Complex { X = Frame[i], Y = 0 };
                     }
-
-                    FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), fftData);
-
-                    // 4. Усиление по частотам
-                    float freqStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
+                    // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
+                    FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTData);
+                    // вычисляем шаг частот
+                    float FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
+                    // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
                     for (int i = 0; i < FrameSize; i++)
                     {
-                        var line = FrequencyLines.FirstOrDefault(
-                            item => item.From < i * freqStep && item.To > i * freqStep, _DefaultLine);
-                        float gain = (float)unchecked(GetMultiplier(line.GainDecibells));
-                        fftData[i].X *= gain;
-                        fftData[i].Y *= gain;
+                        FrequencyLine Line = FrequencyLines.FirstOrDefault(
+                            item => item.From < i * FrequencyStep && item.To > i * FrequencyStep, _DefaultLine);
+                        float gain = (float)unchecked(GetMultiplier(Line.GainDecibells));
+                        FFTData[i].X *= gain;
+                        FFTData[i].Y *= gain;
                     }
-
-                    // 5. Обратное FFT
-                    FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), fftData);
-
-                    float[] ifftResult = new float[FrameSize];
+                    // преобразуем обратно из амплитуды/частоты в время/частоты
+                    FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), FFTData);
+                    // записываем в выходной буфер массив после преобразования бпф и перекрытие
+                    float[] IFFTBuffer = new float[FrameSize];
                     for (int i = 0; i < FrameSize; i++)
                     {
-                        ifftResult[i] = fftData[i].X;
+                        IFFTBuffer[i] = FFTData[i].X + _OverlapBuffer[i];
                     }
-
-                    // 6. Overlap-Add (накладываем результат)
-                    for (int i = 0; i < FrameSize; i++)
-                    {
-                        int index = i;
-                        if (index < _overlapBuffer.Length)
-                            ifftResult[i] += _overlapBuffer[i];
-                    }
-
-                    // 7. Сохраняем половину для следующего блока (в перекрытие)
-                    Array.Copy(ifftResult, HopSize, _overlapBuffer, 0, FrameSize - HopSize);
-
-                    // 8. Сохраняем первую половину в выход
+                    // закидываем второй кусок из выходного буфера в буфер для перекрытия
+                    Array.Copy(IFFTBuffer, HopSize, _OverlapBuffer, 0, HopSize);
+                    // записываем в массив который будет рендериться на устройстве первый кусок (второй кусок будет в некст куске для перекрытия)
                     for (int i = 0; i < HopSize; i++)
                     {
-                        outputSamples.Add(ifftResult[i]);
+                        OutputSamples.Add(IFFTBuffer[i]);
                     }
-
-                    // 9. Удаляем использованные входные данные
-                    _inputBuffer.RemoveRange(0, HopSize);
+                    // чистим инпут буффер для получения некст данных
+                    _InputBuffer.RemoveRange(0, HopSize);
                 }
-                return ConvertFloatToBytes([.. outputSamples], _OutDevice.OutputWaveFormat);
-                //--------------------------------------------------------------------------------
-
-
-
-
-
-                /* Complex[] fftData = new Complex[audioData.Length];
-                 for (int i = 0; i < audioData.Length; i++)
-                 {
-                     fftData[i] = new Complex() { X = audioData[i] , Y = 0 };
-                 }
-                 FastFourierTransform.FFT(true, (int)Math.Log2(audioData.Length), fftData);
-                 float freq = _CaptureDevice.WaveFormat.SampleRate / (float)fftData.Length;
-                 FrequencyLine CurrentLine;
-                 for (int i = 0; i < audioData.Length; i++)
-                 {
-                     CurrentLine = FrequencyLines.FirstOrDefault(item => item.From < i * freq && item.To > i * freq, _DefaultLine);
-                     fftData[i].X *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
-                     fftData[i].Y *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
-                 }
-                 FastFourierTransform.FFT(false, (int)Math.Log2(audioData.Length), fftData);
-                 float[] processed = new float[audioData.Length];
-                 for (int i = 0; i < processed.Length; i++)
-                 {
-                     processed[i] = fftData[i].X;
-                 }
-                 return ConvertFloatToBytes(processed, _OutDevice.OutputWaveFormat);*/
+                return ConvertFloatToBytes([.. OutputSamples], _OutDevice.OutputWaveFormat);
             }
-            else 
+            else
             {
                 return inputBuffer;
             }
@@ -269,7 +229,7 @@ namespace Equalizer.Service
         /// <summary>
         /// Диспозит текущие устройства захвата и вывода и записывает новые
         /// </summary>
-        public void ChangeDevices(MMDevice outDevice, MMDevice captureDevice) 
+        public void ChangeDevices(MMDevice outDevice, MMDevice captureDevice)
         {
             if (Initialized && !_IsDisposed)
             {
@@ -280,7 +240,7 @@ namespace Equalizer.Service
             }
             _IsDisposed = false;
             Initialized = false;
-            Initialize(outDevice,captureDevice);
+            Initialize(outDevice, captureDevice);
         }
         /// <summary>
         /// Диспозит текущие устройства захвата и вывода и записывает новое устройство вывода (устройство захвата по дефолту VAC)
@@ -318,6 +278,12 @@ namespace Equalizer.Service
                 _OutDevice?.Stop();
             }
         }
+        public void ChangeVolume(int Volume)
+        {
+            if (Volume < 0 || Volume > 100)
+                throw new ArgumentException("Volume must be positive and less or equal than 100");
+            _OutDevice.Volume = Volume / 100f;
+        }
         public void Dispose()
         {
             if (!_IsDisposed && Initialized)
@@ -332,7 +298,9 @@ namespace Equalizer.Service
         public DSProcessor()
         {
             FrequencyLines = [];
-            _DefaultLine = new(0,0);
+            _DefaultLine = new(0, 0);
+            _OverlapBuffer = [FrameSize];
+            _InputBuffer = [];
         }
         /// <summary>
         /// Возвращает список устройств доступных для вывода аудио сигнала
