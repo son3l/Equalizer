@@ -5,6 +5,7 @@ using NAudio.Wave;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace Equalizer.Service
@@ -27,6 +28,22 @@ namespace Equalizer.Service
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
         public List<FrequencyLine> FrequencyLines { get; private set; }
+        //---------------------------------------------------------------------------------------
+        //для overlap (потом привести к нормальному виду)
+        /// <summary>
+        /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
+        /// </summary>
+        private const int FrameSize = 1024;
+        /// <summary>
+        /// Размер перекрытия (50%)
+        /// </summary>
+        private const int HopSize = FrameSize / 2; 
+        private float[] _overlapBuffer = new float[FrameSize]; // для хранения наложения
+        private List<float> _inputBuffer = new(); // накопитель входных данных
+        //---------------------------------------------------------------------------------------
+
+
+
         /// <summary>
         /// инициализирует устройство вывода и устройство для захвата
         /// </summary>
@@ -36,7 +53,7 @@ namespace Equalizer.Service
             {
                 Initialized = true;
                 _CaptureDevice = new WasapiLoopbackCapture(captureDevice) { ShareMode = AudioClientShareMode.Shared };
-                // TODO сделать отмену остановки при переключении устройства
+                // TODO сделать отмену остановки при переключении устройства и переключениями видосов в браузере (хз почему он останавливается)
                 _CaptureDevice.RecordingStopped += (s, e) =>
                 {
                     _IsCaptureDeviceRunning = false;
@@ -71,30 +88,100 @@ namespace Equalizer.Service
         }
         private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
+            List<float> outputSamples = [];
             if (FrequencyLines.Count != 0)
             {
                 float[] audioData = ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded);
-                Complex[] fftData = new Complex[audioData.Length];
-                for (int i = 0; i < audioData.Length; i++)
+                _inputBuffer.AddRange(audioData);
+                //--------------------------------------------------------------------------------
+                while (_inputBuffer.Count >= FrameSize)
                 {
-                    fftData[i] = new Complex() { X = audioData[i], Y = 0 };
+                    // 1. Берем FrameSize сэмплов
+                    float[] frame = [.. _inputBuffer.GetRange(0, FrameSize)];
+
+                    // 2. Применяем Hann-окно
+                    for (int i = 0; i < FrameSize; i++)
+                    {
+                        frame[i] *= (float)unchecked(FastFourierTransform.HannWindow(i, FrameSize));
+                    }
+
+                    // 3. FFT
+                    Complex[] fftData = new Complex[FrameSize];
+                    for (int i = 0; i < FrameSize; i++)
+                    {
+                        fftData[i] = new Complex { X = frame[i], Y = 0 };
+                    }
+
+                    FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), fftData);
+
+                    // 4. Усиление по частотам
+                    float freqStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
+                    for (int i = 0; i < FrameSize; i++)
+                    {
+                        var line = FrequencyLines.FirstOrDefault(
+                            item => item.From < i * freqStep && item.To > i * freqStep, _DefaultLine);
+                        float gain = (float)unchecked(GetMultiplier(line.GainDecibells));
+                        fftData[i].X *= gain;
+                        fftData[i].Y *= gain;
+                    }
+
+                    // 5. Обратное FFT
+                    FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), fftData);
+
+                    float[] ifftResult = new float[FrameSize];
+                    for (int i = 0; i < FrameSize; i++)
+                    {
+                        ifftResult[i] = fftData[i].X;
+                    }
+
+                    // 6. Overlap-Add (накладываем результат)
+                    for (int i = 0; i < FrameSize; i++)
+                    {
+                        int index = i;
+                        if (index < _overlapBuffer.Length)
+                            ifftResult[i] += _overlapBuffer[i];
+                    }
+
+                    // 7. Сохраняем половину для следующего блока (в перекрытие)
+                    Array.Copy(ifftResult, HopSize, _overlapBuffer, 0, FrameSize - HopSize);
+
+                    // 8. Сохраняем первую половину в выход
+                    for (int i = 0; i < HopSize; i++)
+                    {
+                        outputSamples.Add(ifftResult[i]);
+                    }
+
+                    // 9. Удаляем использованные входные данные
+                    _inputBuffer.RemoveRange(0, HopSize);
                 }
-                FastFourierTransform.FFT(true, (int)Math.Log2(audioData.Length), fftData);
-                float freq = _CaptureDevice.WaveFormat.SampleRate / (float)fftData.Length;
-                FrequencyLine CurrentLine;
-                for (int i = 0; i < audioData.Length; i++)
-                {
-                    CurrentLine = FrequencyLines.FirstOrDefault(item => item.From < i * freq && item.To > i * freq, _DefaultLine);
-                    fftData[i].X *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
-                    fftData[i].Y *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
-                }
-                FastFourierTransform.FFT(false, (int)Math.Log2(audioData.Length), fftData);
-                float[] processed = new float[audioData.Length];
-                for (int i = 0; i < processed.Length; i++)
-                {
-                    processed[i] = fftData[i].X;
-                }
-                return ConvertFloatToBytes(processed, _OutDevice.OutputWaveFormat);
+                return ConvertFloatToBytes([.. outputSamples], _OutDevice.OutputWaveFormat);
+                //--------------------------------------------------------------------------------
+
+
+
+
+
+                /* Complex[] fftData = new Complex[audioData.Length];
+                 for (int i = 0; i < audioData.Length; i++)
+                 {
+                     fftData[i] = new Complex() { X = audioData[i] , Y = 0 };
+                 }
+                 FastFourierTransform.FFT(true, (int)Math.Log2(audioData.Length), fftData);
+                 float freq = _CaptureDevice.WaveFormat.SampleRate / (float)fftData.Length;
+                 FrequencyLine CurrentLine;
+                 for (int i = 0; i < audioData.Length; i++)
+                 {
+                     CurrentLine = FrequencyLines.FirstOrDefault(item => item.From < i * freq && item.To > i * freq, _DefaultLine);
+                     fftData[i].X *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
+                     fftData[i].Y *= (float)unchecked(GetMultiplier(CurrentLine.GainDecibells));
+                 }
+                 FastFourierTransform.FFT(false, (int)Math.Log2(audioData.Length), fftData);
+                 float[] processed = new float[audioData.Length];
+                 for (int i = 0; i < processed.Length; i++)
+                 {
+                     processed[i] = fftData[i].X;
+                 }
+                 return ConvertFloatToBytes(processed, _OutDevice.OutputWaveFormat);*/
             }
             else 
             {
@@ -104,11 +191,11 @@ namespace Equalizer.Service
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала
         /// </summary>
-        private double GetMultiplier(int decibells)
+        private static double GetMultiplier(int decibells)
         {
+            //TODO проверить как правильно получать мультипликатор на основе децибел
             return Math.Pow(10, decibells / 10d);
         }
-
         #region Конвертации
         /// <summary>
         /// Преобразует float[] в byte[] учитывая формат аудио
