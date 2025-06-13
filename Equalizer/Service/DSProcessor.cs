@@ -299,7 +299,7 @@ namespace Equalizer.Service
         {
             FrequencyLines = [];
             _DefaultLine = new(0, 0);
-            _OverlapBuffer = [FrameSize];
+            _OverlapBuffer = new float[FrameSize];
             _InputBuffer = [];
         }
         /// <summary>
