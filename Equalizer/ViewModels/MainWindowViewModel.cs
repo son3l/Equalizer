@@ -5,9 +5,11 @@ using CommunityToolkit.Mvvm.Input;
 using Equalizer.Models;
 using Equalizer.Service;
 using NAudio.CoreAudioApi;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -41,7 +43,7 @@ namespace Equalizer.ViewModels
         public MainWindowViewModel()
         {
             Processor = new();
-            Devices = [.. DSProcessor.GetDevices()];
+            Devices = [.. DSProcessor.GetDevices().Where(item=>!item.FriendlyName.Contains("Virtual"))];
             //тестовые полосы
             Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = "BASS" });
             Processor.FrequencyLines.Add(new FrequencyLine(1500, 3800));
@@ -89,8 +91,14 @@ namespace Equalizer.ViewModels
         [RelayCommand]
         private async Task SaveLines()
         {
-            IStorageFile file = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions()
+            IStorageFile? file = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions()
             {
+                SuggestedStartLocation = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+                .MainWindow
+                .StorageProvider
+                .TryGetFolderFromPathAsync(
+                    Environment
+                    .GetFolderPath(Environment.SpecialFolder.MyDocuments)),
                 DefaultExtension = "lines",
                 FileTypeChoices =
                 [
@@ -114,6 +122,12 @@ namespace Equalizer.ViewModels
         {
             IReadOnlyList<IStorageFile> file = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
             {
+                SuggestedStartLocation = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
+                .MainWindow
+                .StorageProvider
+                .TryGetFolderFromPathAsync(
+                    Environment
+                    .GetFolderPath(Environment.SpecialFolder.MyDocuments)),
                 AllowMultiple = false,
                 FileTypeFilter =
                     [

@@ -19,7 +19,7 @@
             <InvokeCommandAction Command="{Binding ClosingCommand}" />
         </EventTriggerBehavior>
     </Interaction.Behaviors>
-    <Grid RowDefinitions="30,100,*">
+    <Grid Background="#e6e7e8" RowDefinitions="30,100,*">
         <Menu Grid.Row="0">
             <MenuItem Header="Полосы">
                 <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
@@ -29,26 +29,36 @@
         </Menu>
         <StackPanel
             Grid.Row="1"
-            HorizontalAlignment="Center"
+            Margin="10"
+            HorizontalAlignment="Left"
             VerticalAlignment="Center"
             Orientation="Horizontal"
             Spacing="5">
             <ComboBox
                 Width="200"
+                VerticalAlignment="Center"
                 ItemsSource="{Binding Devices}"
                 SelectedItem="{Binding SelectedDevice}" />
-            <Button
-                Width="200"
-                Command="{Binding PlayCommand}"
-                Content="Play" />
-            <Button
-                Width="200"
-                Command="{Binding StopCommand}"
-                Content="Stop" />
+            <StackPanel Spacing="5">
+                <Button
+                    Width="70"
+                    Command="{Binding PlayCommand}"
+                    Content="Play" />
+                <Button
+                    Width="70"
+                    Command="{Binding StopCommand}"
+                    Content="Stop" />
+            </StackPanel>
+            <!--  TODO сделать анимацию спектра справа от кнопока play/stop  -->
+            <Border
+                BorderBrush="#abaeb1"
+                BorderThickness="2"
+                CornerRadius="5">
+                <Canvas Width="500" />
+            </Border>
         </StackPanel>
-        <!--  TODO сделать анимацию спектра сзади от полос  -->
         <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Visible">
-            <ItemsControl ItemsSource="{Binding Processor.FrequencyLines}">
+            <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Processor.FrequencyLines}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" Spacing="10" />
