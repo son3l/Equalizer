@@ -54,7 +54,7 @@ namespace Equalizer.Service
             {
                 Initialized = true;
                 _CaptureDevice = new WasapiLoopbackCapture(captureDevice) { ShareMode = AudioClientShareMode.Shared };
-                // TODO сделать отмену остановки при переключении устройства и переключениями видосов в браузере (хз почему он останавливается)
+                // TODO сделать отмену остановки при переключении устройства и переключениями видосов в браузере (хз почему он останавливается, в ++ не выключался)
                 _CaptureDevice.RecordingStopped += (s, e) =>
                 {
                     _IsCaptureDeviceRunning = false;
@@ -87,6 +87,9 @@ namespace Equalizer.Service
                       .EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
                       .First(item => item.FriendlyName.Contains("Virtual")));
         }
+        /// <summary>
+        /// Обрабатывает данные с устройства захвата по добавленным полосам и возвращает обработанные данные
+        /// </summary>
         private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
             //TODO сделать чет с GC (срабатывает раз в 3 сек на 1 поколении)
@@ -153,8 +156,7 @@ namespace Equalizer.Service
         /// </summary>
         private static double GetMultiplier(int decibells)
         {
-            //TODO проверить как правильно получать мультипликатор на основе децибел
-            return Math.Pow(10, decibells / 10d);
+            return Math.Pow(10, decibells / 20d);
         }
         #region Конвертации
         /// <summary>

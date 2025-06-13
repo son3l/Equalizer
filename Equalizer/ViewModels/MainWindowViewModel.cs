@@ -47,5 +47,13 @@ namespace Equalizer.ViewModels
         {
             Processor.StopCapture();
         }
+        [RelayCommand]
+        private void DiscardAllLines()
+        {
+            foreach (var line in Processor.FrequencyLines)
+            {
+                line.GainDecibells = 0;
+            }
+        }
     }
 }

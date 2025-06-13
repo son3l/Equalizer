@@ -30,6 +30,10 @@
             Width="200"
             Command="{Binding StopCommand}"
             Content="Stop" />
+		<Button
+		   Width="200"
+		   Command="{Binding DiscardAllLinesCommand}"
+		   Content="Discard" />
         <ItemsControl ItemsSource="{Binding Processor.FrequencyLines}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
