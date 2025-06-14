@@ -1,0 +1,60 @@
+<Window
+    x:Class="Equalizer.DeleteLinesWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Equalizer.ViewModels"
+    Title="DeleteLinesWindow"
+    Width="400"
+    Height="450"
+    d:DesignHeight="450"
+    d:DesignWidth="400"
+    x:DataType="vm:DeleteLinesWindowViewModel"
+    CanResize="False"
+    SystemDecorations="BorderOnly"
+    mc:Ignorable="d">
+    <Window.DataContext>
+        <vm:DeleteLinesWindowViewModel />
+    </Window.DataContext>
+    <Grid Background="#1E1E1E" RowDefinitions="50,*,50">
+        <TextBlock
+            Grid.Row="0"
+            Margin="10"
+            HorizontalAlignment="Center"
+            Foreground="#D0D0D0"
+            Text="Выберите полосы для удаления" />
+        <!--  TODO сделать стили  -->
+        <ListBox
+            Grid.Row="1"
+            Background="#2C2C2C"
+            Foreground="#D0D0D0"
+            ItemsSource="{Binding Lines}"
+            SelectedItems="{Binding SelectedLines}"
+            SelectionMode="Multiple">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock HorizontalAlignment="Center" Text="{Binding Name}" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <StackPanel
+            Grid.Row="2"
+            HorizontalAlignment="Center"
+            Orientation="Horizontal"
+            Spacing="10">
+            <Button
+                Classes="default"
+                Command="{Binding DeleteCommandCommand}"
+                CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                <TextBlock Text="Удалить" />
+            </Button>
+            <Button
+                Classes="default"
+                Command="{Binding CancelCommandCommand}"
+                CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                <TextBlock Text="Отмена" />
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

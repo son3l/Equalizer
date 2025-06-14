@@ -13,5 +13,6 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="/Styles/FrequencySliderBar.axaml" />
+        <StyleInclude Source="/Styles/Buttons.axaml" />
     </Application.Styles>
 </Application>

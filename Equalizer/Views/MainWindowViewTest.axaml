@@ -1,68 +1,58 @@
 <Window
-    x:Class="Equalizer.Views.MainWindow"
+    x:Class="Equalizer.MainWindowViewTest"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Equalizer.ViewModels"
     Title="Equalizer"
-    Width="950"
-    Height="650"
-    MinWidth="350"
-    MinHeight="650"
     d:DesignHeight="650"
-    d:DesignWidth="950"
+    d:DesignWidth="1000"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/avalonia-logo.ico"
     mc:Ignorable="d">
     <Design.DataContext>
         <vm:MainWindowViewModel />
     </Design.DataContext>
-    <Interaction.Behaviors>
-        <EventTriggerBehavior EventName="Closing">
-            <InvokeCommandAction Command="{Binding ClosingCommand}" />
-        </EventTriggerBehavior>
-    </Interaction.Behaviors>
-    <Grid Background="#1E1E1E" RowDefinitions="20,*,*">
-        <!--  TODO сделать стили  -->
-        <Menu Grid.Row="0" Margin="5">
-            <MenuItem Foreground="#D0D0D0" Header="Полосы">
+    <Grid Background="#e6e7e8" RowDefinitions="30,100,*">
+        <Menu Grid.Row="0">
+            <MenuItem Header="Полосы">
                 <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
-                <MenuItem Command="{Binding OpenDeleteLinesCommand}" Header="Удалить" />
                 <MenuItem Command="{Binding SaveLinesCommand}" Header="Сохранить" />
                 <MenuItem Command="{Binding LoadLinesCommand}" Header="Загрузить" />
             </MenuItem>
         </Menu>
         <StackPanel
             Grid.Row="1"
-            Margin="20"
-            Spacing="12">
+            Margin="10"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            Orientation="Horizontal"
+            Spacing="5">
             <ComboBox
-                Width="210"
-                HorizontalAlignment="Center"
+                Width="200"
                 VerticalAlignment="Center"
                 ItemsSource="{Binding Devices}"
                 SelectedItem="{Binding SelectedDevice}" />
-            <StackPanel
-                Grid.Row="2"
-                HorizontalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="10">
+            <StackPanel Spacing="5">
                 <Button
-                    Width="100"
-                    Height="32"
-                    Classes="default"
-                    Command="{Binding PlayCommand}">
-                    <TextBlock HorizontalAlignment="Center" Text="Play" />
-                </Button>
+                    Width="70"
+                    Command="{Binding PlayCommand}"
+                    Content="Play" />
                 <Button
-                    Width="100"
-                    Height="32"
-                    Classes="default"
-                    Command="{Binding StopCommand}">
-                    <TextBlock HorizontalAlignment="Center" Text="Stop" />
-                </Button>
+                    Width="70"
+                    Command="{Binding StopCommand}"
+                    Content="Stop" />
             </StackPanel>
+            <!--  TODO сделать анимацию спектра справа от кнопока play/stop  -->
+            <Border
+                BorderBrush="#abaeb1"
+                BorderThickness="2"
+                CornerRadius="5">
+                <Canvas Width="500" />
+            </Border>
+        </StackPanel>
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Visible">
             <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Processor.FrequencyLines}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -83,21 +73,6 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <!--  TODO сделать анимацию спектра справа от кнопока play/stop  -->
-            <Border
-                Height="100"
-                Margin="0,12,0,0"
-                Background="Black"
-                BorderBrush="#333"
-                BorderThickness="1"
-                CornerRadius="6">
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Foreground="#777"
-                    Text="Spectrum Visualizer" />
-            </Border>
-        </StackPanel>
+        </ScrollViewer>
     </Grid>
-
 </Window>

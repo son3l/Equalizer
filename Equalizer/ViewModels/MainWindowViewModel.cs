@@ -43,18 +43,17 @@ namespace Equalizer.ViewModels
         public MainWindowViewModel()
         {
             Processor = new();
-            Devices = [.. DSProcessor.GetDevices().Where(item=>!item.FriendlyName.Contains("Virtual"))];
+            Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
             //тестовые полосы
-            Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = "BASS" });
-            Processor.FrequencyLines.Add(new FrequencyLine(1500, 3800));
-            Processor.FrequencyLines.Add(new FrequencyLine(3800, 6800));
-            Processor.FrequencyLines.Add(new FrequencyLine(6800, 9800));
-            Processor.FrequencyLines.Add(new FrequencyLine(9800, 12800));
-            Processor.FrequencyLines.Add(new FrequencyLine(12800, 16800));
-            Processor.FrequencyLines.Add(new FrequencyLine(16800, 19800));
-            Processor.FrequencyLines.Add(new FrequencyLine(19800, 21800));
-            Processor.FrequencyLines.Add(new FrequencyLine(21800, 23800));
-            Processor.FrequencyLines.Add(new FrequencyLine(23800, 33900));
+            Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = " low BASS" });
+            Processor.FrequencyLines.Add(new FrequencyLine(1500, 3800) { Name = " mid BASS" });
+            Processor.FrequencyLines.Add(new FrequencyLine(3800, 6800) { Name = " high BASS" });
+            Processor.FrequencyLines.Add(new FrequencyLine(6800, 9800) { Name = "low mid" });
+            Processor.FrequencyLines.Add(new FrequencyLine(9800, 12800) { Name = "mid mid" });
+            Processor.FrequencyLines.Add(new FrequencyLine(12800, 16800) { Name = "high mid" });
+            Processor.FrequencyLines.Add(new FrequencyLine(16800, 19800) { Name = "low high" });
+            Processor.FrequencyLines.Add(new FrequencyLine(19800, 21800) { Name = "mid high" });
+            Processor.FrequencyLines.Add(new FrequencyLine(21800, 23800) { Name = "high high" });
         }
         /// <summary>
         /// Запуск обработки звуука
@@ -149,6 +148,24 @@ namespace Equalizer.ViewModels
                 }
             }
 
+        }
+        [RelayCommand]
+        private async Task OpenDeleteLines()
+        {
+            ObservableCollection<FrequencyLine>? result = await new DeleteLinesWindow() 
+            { 
+                DataContext = new DeleteLinesWindowViewModel(Processor.FrequencyLines) 
+            }
+            .ShowDialog<ObservableCollection<FrequencyLine>>((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            if (result is not null)
+            {
+                //копируем массив чтобы итератор не сдох при очередном закрытии окна
+                ObservableCollection<FrequencyLine> copyedResult = [..result];
+                foreach (FrequencyLine item in copyedResult)
+                {
+                    Processor.FrequencyLines.Remove(item);
+                }
+            }
         }
         /// <summary>
         /// Диспозит текущий процессор при выходе из приложения
