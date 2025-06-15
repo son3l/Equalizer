@@ -1,14 +1,10 @@
-﻿using Avalonia.Collections;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
+﻿using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Equalizer.Models;
 using Equalizer.Service;
 using NAudio.CoreAudioApi;
-using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -82,7 +78,7 @@ namespace Equalizer.ViewModels
         /// <summary>
         /// Запуск остановки процессора
         /// </summary>
-        [RelayCommand(CanExecute =nameof(CanStartOrStop))]
+        [RelayCommand(CanExecute = nameof(CanStartOrStop))]
         private void Stop()
         {
             Processor.StopCapture();

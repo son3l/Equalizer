@@ -27,11 +27,9 @@ namespace Equalizer.Service
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
         public ObservableCollection<FrequencyLine> FrequencyLines { get; private set; }
-        //-----------------------------------------------------------------------
         private float[] _Spectrum;
         public delegate void SpectrumCalculatedHandler(float[] spectrum);
         public event SpectrumCalculatedHandler SpectrumCalculated;
-        //-----------------------------------------------------------------------
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
         /// </summary>
@@ -102,10 +100,14 @@ namespace Equalizer.Service
             {
                 // считываем данные в инпут буфер
                 _InputBuffer.AddRange(ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded));
+                // для начала вычисляеем спектр для визуализации (БЛЯТЬ ЖРЕТ ПАМЯТЬ ПИЗДЕЦ)
+                //CalculateSpectrum(_InputBuffer);
                 while (_InputBuffer.Count >= FrameSize)
                 {
                     // берем кусок в 1024 элемента из инпут буфера
                     float[] Frame = [.. _InputBuffer.GetRange(0, FrameSize)];
+                    // float[] OriginalFrame = [.. _InputBuffer.GetRange(0, FrameSize)];
+                    CalculateSpectrumForFrame([.. _InputBuffer.GetRange(0, FrameSize)]);
                     // добавляем окно в кусок элементов
                     for (int i = 0; i < FrameSize; i++)
                     {
@@ -117,18 +119,27 @@ namespace Equalizer.Service
                     {
                         FFTData[i] = new Complex { X = Frame[i], Y = 0 };
                     }
-                    // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
-                    FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTData);
-                    //--------------------------------------------------------------------------------------
-                    //TODO придумать как отображать без приколов от hann window
+                    //Complex[] FFTDataOriginalFrames = new Complex[FrameSize];
                     for (int i = 0; i < FrameSize; i++)
                     {
-                        float magnitude = (float)Math.Sqrt(FFTData[i].X * FFTData[i].X + FFTData[i].Y * FFTData[i].Y);
-                        var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f); 
-                        _Spectrum[i] = Math.Clamp((dbValue + 60) / 60,0,1);
+                        FFTData[i] = new Complex { X = Frame[i], Y = 0 };
                     }
-                    SpectrumCalculated?.Invoke(_Spectrum);
-                    //--------------------------------------------------------------------------------------
+                    /*for (int i = 0; i < FrameSize; i++)
+                    {
+                        FFTDataOriginalFrames[i] = new Complex { X = Frame[i], Y = 0 };
+                    }*/
+                    // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
+                    FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTData);
+                    /*FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTDataOriginalFrames);
+                    //---------------------------------------------------------------------------------------------------
+                    for (int i = 0; i < FFTDataOriginalFrames.Length; i++)
+                    {
+                        float magnitude = (float)Math.Sqrt(FFTDataOriginalFrames[i].X * FFTDataOriginalFrames[i].X + FFTDataOriginalFrames[i].Y * FFTDataOriginalFrames[i].Y);
+                        var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
+                        _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
+                    }
+                    SpectrumCalculated?.Invoke([.. _Spectrum]);*/
+                    //---------------------------------------------------------------------------------------------------
                     // вычисляем шаг частот
                     float FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
                     // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
@@ -164,6 +175,54 @@ namespace Equalizer.Service
             {
                 return inputBuffer;
             }
+        }
+        /// <summary>
+        /// Рассчитывает значения для всего спектра
+        /// </summary>
+        // TODO неистово жрет память и тем самым напрягает GC
+        [Obsolete("Сильно напрягает GC, лучше не использовать")]
+        private void CalculateSpectrum(List<float> inputBuffer)
+        {
+            _Spectrum = new float[inputBuffer.Count];
+            // создаем массив комплексных чисел для бпф
+            Complex[] FFTData = new Complex[inputBuffer.Count];
+            for (int i = 0; i < inputBuffer.Count; i++)
+            {
+                FFTData[i] = new Complex { X = inputBuffer[i], Y = 0 };
+            }
+            // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
+            FastFourierTransform.FFT(true, (int)Math.Log2(inputBuffer.Count), FFTData);
+            // переводим в децибелы и нормализует для визуализации
+            for (int i = 0; i < FFTData.Length; i++)
+            {
+                float magnitude = (float)Math.Sqrt(FFTData[i].X * FFTData[i].X + FFTData[i].Y * FFTData[i].Y);
+                var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
+                _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
+            }
+            SpectrumCalculated?.Invoke([.. _Spectrum]);
+        }
+        /// <summary>
+        /// Рассчитывает значения для фрейма из спектра спектра
+        /// </summary>
+        // TODO в определенный момент GC начинает упорно больше нужного чистить 1ое поколение
+        private void CalculateSpectrumForFrame(float[] frame)
+        {
+            // создаем массив комплексных чисел для бпф
+            Complex[] FFTData = new Complex[frame.Length];
+            for (int i = 0; i < FFTData.Length; i++)
+            {
+                FFTData[i] = new Complex { X = frame[i], Y = 0 };
+            }
+            // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
+            FastFourierTransform.FFT(true, (int)Math.Log2(FFTData.Length), FFTData);
+            // переводим в децибелы и нормализует для визуализации
+            for (int i = 0; i < FFTData.Length; i++)
+            {
+                float magnitude = (float)Math.Sqrt(FFTData[i].X * FFTData[i].X + FFTData[i].Y * FFTData[i].Y);
+                var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
+                _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
+            }
+            SpectrumCalculated?.Invoke([.. _Spectrum]);
         }
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала
