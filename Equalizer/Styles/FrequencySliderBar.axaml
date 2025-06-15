@@ -12,7 +12,6 @@
         </Border>
     </Design.PreviewWith>
     <Style Selector="Border.FrequencyBorder">
-        <Setter Property="Opacity" Value="0.7" />
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="BorderBrush" Value="#abaeb1" />
         <Setter Property="BorderThickness" Value="5" />

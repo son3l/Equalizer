@@ -2,6 +2,7 @@
     x:Class="Equalizer.Views.MainWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Equalizer.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Equalizer.ViewModels"
@@ -63,27 +64,28 @@
                     <TextBlock HorizontalAlignment="Center" Text="Stop" />
                 </Button>
             </StackPanel>
-            <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Processor.FrequencyLines}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="10" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Classes="FrequencyBorder">
-                            <StackPanel Margin="5" Spacing="5">
-                                <TextBlock Text="{Binding Name}" />
-                                <Slider
-                                    Maximum="9"
-                                    Minimum="-9"
-                                    Value="{Binding GainDecibells}" />
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <!--  TODO сделать анимацию спектра справа от кнопока play/stop  -->
+            <ScrollViewer HorizontalScrollBarVisibility="Visible">
+                <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Processor.FrequencyLines}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="10" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes="FrequencyBorder">
+                                <StackPanel Margin="5" Spacing="5">
+                                    <TextBlock Text="{Binding Name}" />
+                                    <Slider
+                                        Maximum="9"
+                                        Minimum="-9"
+                                        Value="{Binding GainDecibells}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
             <Border
                 Height="100"
                 Margin="0,12,0,0"
@@ -91,11 +93,16 @@
                 BorderBrush="#333"
                 BorderThickness="1"
                 CornerRadius="6">
-                <TextBlock
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Foreground="#777"
-                    Text="Spectrum Visualizer" />
+                <controls:SpectrumVisualizer
+					Margin="2"
+                    Width="400"
+                    Height="100"
+                    HorizontalAlignment="Left"
+                    BarBrush="#D0D0D0"
+                    BarSpacing="3"
+                    MinBarHeight="0"
+                    SmoothingEnabled="True"
+                    SpectrumData="{Binding SpectrumValues}" />
             </Border>
         </StackPanel>
     </Grid>

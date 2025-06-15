@@ -44,7 +44,6 @@
                     Command="{Binding StopCommand}"
                     Content="Stop" />
             </StackPanel>
-            <!--  TODO сделать анимацию спектра справа от кнопока play/stop  -->
             <Border
                 BorderBrush="#abaeb1"
                 BorderThickness="2"

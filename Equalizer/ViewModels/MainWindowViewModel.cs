@@ -1,10 +1,14 @@
-﻿using Avalonia.Controls.ApplicationLifetimes;
+﻿using Avalonia.Collections;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Equalizer.Models;
 using Equalizer.Service;
 using NAudio.CoreAudioApi;
+using NAudio.Wave;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -17,6 +21,8 @@ namespace Equalizer.ViewModels
 {
     public partial class MainWindowViewModel : ViewModelBase
     {
+        [ObservableProperty]
+        private ObservableCollection<float> _SpectrumValues;
         /// <summary>
         /// Список доступных девайсов
         /// </summary>
@@ -26,6 +32,8 @@ namespace Equalizer.ViewModels
         /// Выбранный девайс для вывода
         /// </summary>
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
+        [NotifyCanExecuteChangedFor(nameof(StopCommand))]
         private MMDevice _SelectedDevice;
         /// <summary>
         /// Объект процессора обработки звука
@@ -40,9 +48,15 @@ namespace Equalizer.ViewModels
             if (value is not null)
                 Processor.ChangeDevices(value);
         }
+        private void OnSpectrumCalculated(float[] spectrum)
+        {
+                SpectrumValues = [..spectrum];
+        }
         public MainWindowViewModel()
         {
             Processor = new();
+            SpectrumValues = [];
+            Processor.SpectrumCalculated += OnSpectrumCalculated;
             Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
             //тестовые полосы
             Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = " low BASS" });
@@ -58,7 +72,7 @@ namespace Equalizer.ViewModels
         /// <summary>
         /// Запуск обработки звуука
         /// </summary>
-        [RelayCommand]
+        [RelayCommand(CanExecute = nameof(CanStartOrStop))]
         private void Play()
         {
             if (!Processor.Initialized)
@@ -68,10 +82,17 @@ namespace Equalizer.ViewModels
         /// <summary>
         /// Запуск остановки процессора
         /// </summary>
-        [RelayCommand]
+        [RelayCommand(CanExecute =nameof(CanStartOrStop))]
         private void Stop()
         {
             Processor.StopCapture();
+        }
+        /// <summary>
+        /// Возвращает булево можно ли стартовать или стопить воспроизведение
+        /// </summary>
+        private bool CanStartOrStop()
+        {
+            return SelectedDevice is not null;
         }
         /// <summary>
         /// Скидывает значение на всех полосах в 0
@@ -149,18 +170,22 @@ namespace Equalizer.ViewModels
             }
 
         }
+        /// <summary>
+        /// Открываем диалоговое окно удаления полос 
+        /// </summary>
         [RelayCommand]
         private async Task OpenDeleteLines()
         {
-            ObservableCollection<FrequencyLine>? result = await new DeleteLinesWindow() 
-            { 
-                DataContext = new DeleteLinesWindowViewModel(Processor.FrequencyLines) 
+            ObservableCollection<FrequencyLine>? result = await new DeleteLinesWindow()
+            {
+                DataContext = new DeleteLinesWindowViewModel(Processor.FrequencyLines),
+                WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
             }
             .ShowDialog<ObservableCollection<FrequencyLine>>((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
             if (result is not null)
             {
                 //копируем массив чтобы итератор не сдох при очередном закрытии окна
-                ObservableCollection<FrequencyLine> copyedResult = [..result];
+                ObservableCollection<FrequencyLine> copyedResult = [.. result];
                 foreach (FrequencyLine item in copyedResult)
                 {
                     Processor.FrequencyLines.Remove(item);

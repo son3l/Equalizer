@@ -27,6 +27,11 @@ namespace Equalizer.Service
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
         public ObservableCollection<FrequencyLine> FrequencyLines { get; private set; }
+        //-----------------------------------------------------------------------
+        private float[] _Spectrum;
+        public delegate void SpectrumCalculatedHandler(float[] spectrum);
+        public event SpectrumCalculatedHandler SpectrumCalculated;
+        //-----------------------------------------------------------------------
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
         /// </summary>
@@ -114,6 +119,16 @@ namespace Equalizer.Service
                     }
                     // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
                     FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTData);
+                    //--------------------------------------------------------------------------------------
+                    //TODO придумать как отображать без приколов от hann window
+                    for (int i = 0; i < FrameSize; i++)
+                    {
+                        float magnitude = (float)Math.Sqrt(FFTData[i].X * FFTData[i].X + FFTData[i].Y * FFTData[i].Y);
+                        var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f); 
+                        _Spectrum[i] = Math.Clamp((dbValue + 60) / 60,0,1);
+                    }
+                    SpectrumCalculated?.Invoke(_Spectrum);
+                    //--------------------------------------------------------------------------------------
                     // вычисляем шаг частот
                     float FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
                     // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
@@ -298,6 +313,7 @@ namespace Equalizer.Service
         }
         public DSProcessor()
         {
+            _Spectrum = new float[FrameSize];
             FrequencyLines = [];
             _DefaultLine = new(0, 0);
             _OverlapBuffer = new float[FrameSize];
