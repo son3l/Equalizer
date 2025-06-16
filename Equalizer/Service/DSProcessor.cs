@@ -39,7 +39,8 @@ namespace Equalizer.Service
         /// <summary>
         /// Ивент который срабатывает при пересчете фрейма спектра
         /// </summary>
-        public event EventHandler<SpectrumDataEventArgs> SpectrumCalculated;
+        public delegate void SpectrumCalcucated(Span<float> spectrum);
+        public SpectrumCalcucated SpectrumCalcucatedHandler { get; set; }
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
         /// </summary>
@@ -133,7 +134,7 @@ namespace Equalizer.Service
             {
                 // берем кусок в 1024 элемента из инпут буфера
                 _InputBuffer.CopyTo(0, _FrameBuffer, 0, FrameSize);
-                //CalculateSpectrumForFrame(_FrameBuffer);
+                CalculateSpectrumForFrame(_FrameBuffer);
                 // добавляем окно в кусок элементов
                 for (int i = 0; i < FrameSize; i++)
                 {
@@ -199,30 +200,40 @@ namespace Equalizer.Service
                 var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
                 _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
             }
-            SpectrumCalculated?.Invoke(null, new SpectrumDataEventArgs([.. _Spectrum]));
+            //SpectrumCalculated?.Invoke(null, new SpectrumDataEventArgs([.. _Spectrum]));
         }
         /// <summary>
         /// Рассчитывает значения для фрейма из спектра спектра
         /// </summary>
-        // TODO в определенный момент GC начинает упорно больше нужного чистить 1ое поколение
         private void CalculateSpectrumForFrame(float[] frame)
         {
-            // создаем массив комплексных чисел для бпф
-            Complex[] FFTData = new Complex[frame.Length];
-            for (int i = 0; i < FFTData.Length; i++)
+            // создаем буфер БПФ из пула массивов
+            var fftBuffer = ArrayPool<Complex>.Shared.Rent(frame.Length);
+            // создаем буфер спектра в стеке
+            Span<float> spectrum = stackalloc float[FrameSize];
+            // копируем данные
+            for (int i = 0; i < spectrum.Length; i++)
             {
-                FFTData[i] = new Complex { X = frame[i], Y = 0 };
+                //fftBuffer[i] = new Complex() { X= frame[i], Y=0 };
+                fftBuffer[i].X = frame[i];
+                fftBuffer[i].Y = 0;
             }
-            // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
-            FastFourierTransform.FFT(true, (int)Math.Log2(FFTData.Length), FFTData);
-            // переводим в децибелы и нормализует для визуализации
-            for (int i = 0; i < FFTData.Length; i++)
+            // прогоняем БПФ
+            FastFourierTransform.FFT(true, (int)Math.Log2(spectrum.Length), fftBuffer);
+            // 4. Вычисляем амплитуды и нормализуем
+            for (int i = 0; i < frame.Length; i++)
             {
-                float magnitude = (float)Math.Sqrt((FFTData[i].X * FFTData[i].X) + (FFTData[i].Y * FFTData[i].Y));
+                /*float magnitude = (float)Math.Sqrt(fftBuffer[i].X * fftBuffer[i].X + fftBuffer[i].Y * fftBuffer[i].Y);
                 var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
-                _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
+                spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);*/
+                float magnitude = MathF.Sqrt(fftBuffer[i].X * fftBuffer[i].X + fftBuffer[i].Y * fftBuffer[i].Y);
+                float dbValue = 20 * MathF.Log10(magnitude + 1e-10f);
+                spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0f, 1f);
             }
-            SpectrumCalculated?.Invoke(null, new SpectrumDataEventArgs([.. _Spectrum]));
+            // освобождаем буфер обратно в пул
+            ArrayPool<Complex>.Shared.Return(fftBuffer);
+            // дергаем ивент 
+            SpectrumCalcucatedHandler?.Invoke(spectrum);
         }
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала

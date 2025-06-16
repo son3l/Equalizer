@@ -6,6 +6,7 @@ using Equalizer.Models;
 using Equalizer.Service;
 using NAudio.CoreAudioApi;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -44,15 +45,15 @@ namespace Equalizer.ViewModels
             if (value is not null)
                 Processor.ChangeDevices(value);
         }
-        private void OnSpectrumCalculated(object? sender, SpectrumDataEventArgs e)
+        private void OnSpectrumCalculated(Span<float> spectrum)
         {
-                SpectrumValues = [..e.SpectrumData];
+            SpectrumValues = [..spectrum];
         }
         public MainWindowViewModel()
         {
             Processor = new();
             SpectrumValues = [];
-            Processor.SpectrumCalculated += OnSpectrumCalculated;
+            Processor.SpectrumCalcucatedHandler += OnSpectrumCalculated;
             Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
             //тестовые полосы
             Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = " low BASS" });
