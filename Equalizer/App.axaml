@@ -10,9 +10,6 @@
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
-    <Application.Resources>
-        <vm:SpectrumDataConverter x:Key="SpectrumHeightConverter" />
-    </Application.Resources>
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="/Styles/FrequencySliderBar.axaml" />

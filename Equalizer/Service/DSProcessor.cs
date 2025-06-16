@@ -1,8 +1,10 @@
 ﻿using Equalizer.Models;
+using Microsoft.VisualBasic;
 using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -20,6 +22,9 @@ namespace Equalizer.Service
         private bool _IsDisposed;
         private bool _IsOutDeviceRunning;
         private bool _IsCaptureDeviceRunning;
+        /// <summary>
+        /// Дефолт линия, используется если не найдено нужных линий
+        /// </summary>
         private readonly FrequencyLine _DefaultLine;
         public bool Initialized { get; private set; }
         public bool IsRunning => _IsCaptureDeviceRunning || _IsOutDeviceRunning;
@@ -27,9 +32,14 @@ namespace Equalizer.Service
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
         public ObservableCollection<FrequencyLine> FrequencyLines { get; private set; }
+        /// <summary>
+        /// Данные по спектру для визуализации
+        /// </summary>
         private float[] _Spectrum;
-        public delegate void SpectrumCalculatedHandler(float[] spectrum);
-        public event SpectrumCalculatedHandler SpectrumCalculated;
+        /// <summary>
+        /// Ивент который срабатывает при пересчете фрейма спектра
+        /// </summary>
+        public event EventHandler<SpectrumDataEventArgs> SpectrumCalculated;
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
         /// </summary>
@@ -47,6 +57,26 @@ namespace Equalizer.Service
         /// </summary>
         private readonly List<float> _InputBuffer;
         /// <summary>
+        /// Буфер рассчитываемого фрейма
+        /// </summary>
+        private readonly float[] _FrameBuffer;
+        /// <summary>
+        /// Буфер для комплексных чисел  
+        /// </summary>
+        private readonly Complex[] _FFTBuffer;
+        /// <summary>
+        /// Буфер для обратно преобразованных комплексных чисел  
+        /// </summary>
+        private readonly float[] _IFFTBuffer;
+        /// <summary>
+        /// Буфер для выходных семплов
+        /// </summary>
+        private readonly List<float> _OutputSamples;
+        /// <summary>
+        /// Шаг дискретизации
+        /// </summary>
+        private float FrequencyStep;
+        /// <summary>
         /// Инициализирует устройство вывода и устройство для захвата
         /// </summary>
         public void Initialize(MMDevice outDevice, MMDevice captureDevice)
@@ -55,17 +85,17 @@ namespace Equalizer.Service
             {
                 Initialized = true;
                 _CaptureDevice = new WasapiLoopbackCapture(captureDevice) { ShareMode = AudioClientShareMode.Shared };
-                // TODO сделать отмену остановки при переключении устройства и переключениями видосов в браузере (хз почему он останавливается, в ++ не выключался)
-                // проблема с касперским (при отключении касперского отключение не происходит)
                 _CaptureDevice.RecordingStopped += (s, e) =>
                 {
                     _IsCaptureDeviceRunning = false;
                 };
                 _CaptureDevice.DataAvailable += (s, e) =>
                 {
-                    byte[] processedData = ProcessAudioData(e.Buffer, e.BytesRecorded);
-                    _BufferedWaveProvider.AddSamples(processedData, 0, processedData.Length);
+                    Span<byte> processedData = stackalloc byte[e.Buffer.Length];
+                    processedData = ProcessAudioData(e.Buffer, e.BytesRecorded);
+                    _BufferedWaveProvider.AddSamples([..processedData], 0, processedData.Length);
                 };
+                FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
                 _BufferedWaveProvider = new BufferedWaveProvider(_CaptureDevice.WaveFormat)
                 {
                     BufferLength = _CaptureDevice.WaveFormat.AverageBytesPerSecond * 2,
@@ -94,87 +124,57 @@ namespace Equalizer.Service
         /// </summary>
         private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
-            //TODO сделать чет с GC (срабатывает раз в 3 сек на 1 поколении)
-            List<float> OutputSamples = [];
-            if (FrequencyLines.Count != 0)
+            //почему то при возврате инпут буфера происходит какая то дичь
+            if (FrequencyLines.Count == 0)
+                  return inputBuffer;
+            // считываем данные в инпут буфер
+            _InputBuffer.AddRange(ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded));
+            while (_InputBuffer.Count >= FrameSize)
             {
-                // считываем данные в инпут буфер
-                _InputBuffer.AddRange(ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded));
-                // для начала вычисляеем спектр для визуализации (БЛЯТЬ ЖРЕТ ПАМЯТЬ ПИЗДЕЦ)
-                //CalculateSpectrum(_InputBuffer);
-                while (_InputBuffer.Count >= FrameSize)
+                // берем кусок в 1024 элемента из инпут буфера
+                _InputBuffer.CopyTo(0, _FrameBuffer, 0, FrameSize);
+                //CalculateSpectrumForFrame(_FrameBuffer);
+                // добавляем окно в кусок элементов
+                for (int i = 0; i < FrameSize; i++)
                 {
-                    // берем кусок в 1024 элемента из инпут буфера
-                    float[] Frame = [.. _InputBuffer.GetRange(0, FrameSize)];
-                    // float[] OriginalFrame = [.. _InputBuffer.GetRange(0, FrameSize)];
-                    CalculateSpectrumForFrame([.. _InputBuffer.GetRange(0, FrameSize)]);
-                    // добавляем окно в кусок элементов
-                    for (int i = 0; i < FrameSize; i++)
-                    {
-                        Frame[i] *= (float)unchecked(FastFourierTransform.HannWindow(i, FrameSize));
-                    }
-                    // создаем массив комплексных чисел для бпф
-                    Complex[] FFTData = new Complex[FrameSize];
-                    for (int i = 0; i < FrameSize; i++)
-                    {
-                        FFTData[i] = new Complex { X = Frame[i], Y = 0 };
-                    }
-                    //Complex[] FFTDataOriginalFrames = new Complex[FrameSize];
-                    for (int i = 0; i < FrameSize; i++)
-                    {
-                        FFTData[i] = new Complex { X = Frame[i], Y = 0 };
-                    }
-                    /*for (int i = 0; i < FrameSize; i++)
-                    {
-                        FFTDataOriginalFrames[i] = new Complex { X = Frame[i], Y = 0 };
-                    }*/
-                    // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
-                    FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTData);
-                    /*FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), FFTDataOriginalFrames);
-                    //---------------------------------------------------------------------------------------------------
-                    for (int i = 0; i < FFTDataOriginalFrames.Length; i++)
-                    {
-                        float magnitude = (float)Math.Sqrt(FFTDataOriginalFrames[i].X * FFTDataOriginalFrames[i].X + FFTDataOriginalFrames[i].Y * FFTDataOriginalFrames[i].Y);
-                        var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
-                        _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
-                    }
-                    SpectrumCalculated?.Invoke([.. _Spectrum]);*/
-                    //---------------------------------------------------------------------------------------------------
-                    // вычисляем шаг частот
-                    float FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
-                    // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
-                    for (int i = 0; i < FrameSize; i++)
-                    {
-                        FrequencyLine Line = FrequencyLines.FirstOrDefault(
-                            item => item.From < i * FrequencyStep && item.To > i * FrequencyStep, _DefaultLine);
-                        float gain = (float)unchecked(GetMultiplier(Line.GainDecibells));
-                        FFTData[i].X *= gain;
-                        FFTData[i].Y *= gain;
-                    }
-                    // преобразуем обратно из амплитуды/частоты в время/частоты
-                    FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), FFTData);
-                    // записываем в выходной буфер массив после преобразования бпф и перекрытие
-                    float[] IFFTBuffer = new float[FrameSize];
-                    for (int i = 0; i < FrameSize; i++)
-                    {
-                        IFFTBuffer[i] = FFTData[i].X + _OverlapBuffer[i];
-                    }
-                    // закидываем второй кусок из выходного буфера в буфер для перекрытия
-                    Array.Copy(IFFTBuffer, HopSize, _OverlapBuffer, 0, HopSize);
-                    // записываем в массив который будет рендериться на устройстве первый кусок (второй кусок будет в некст куске для перекрытия)
-                    for (int i = 0; i < HopSize; i++)
-                    {
-                        OutputSamples.Add(IFFTBuffer[i]);
-                    }
-                    // чистим инпут буффер для получения некст данных
-                    _InputBuffer.RemoveRange(0, HopSize);
+                    _FrameBuffer[i] *= (float)unchecked(FastFourierTransform.HannWindow(i, FrameSize));
                 }
-                return ConvertFloatToBytes([.. OutputSamples], _OutDevice.OutputWaveFormat);
+                for (int i = 0; i < FrameSize; i++)
+                {
+                    _FFTBuffer[i] = new Complex { X = _FrameBuffer[i], Y = 0 };
+                }
+                // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
+                FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), _FFTBuffer);
+                // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
+                for (int i = 0; i < FrameSize; i++)
+                {
+                    FrequencyLine Line = FrequencyLines.FirstOrDefault(
+                        item => item.From < i * FrequencyStep && item.To > i * FrequencyStep, _DefaultLine);
+                    float gain = (float)unchecked(GetMultiplier(Line.GainDecibells));
+                    _FFTBuffer[i].X *= gain;
+                    _FFTBuffer[i].Y *= gain;
+                }
+                // преобразуем обратно из амплитуды/частоты в время/частоты
+                FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), _FFTBuffer);
+                // записываем в выходной буфер массив после преобразования бпф и перекрытие
+                for (int i = 0; i < FrameSize; i++)
+                {
+                    _IFFTBuffer[i] = _FFTBuffer[i].X + _OverlapBuffer[i];
+                }
+                // закидываем второй кусок из выходного буфера в буфер для перекрытия
+                Array.Copy(_IFFTBuffer, HopSize, _OverlapBuffer, 0, HopSize);
+                // записываем в массив который будет рендериться на устройстве первый кусок (второй кусок будет в некст куске для перекрытия)
+                for (int i = 0; i < HopSize; i++)
+                {
+                    _OutputSamples.Add(_IFFTBuffer[i]);
+                }
+                // чистим инпут буффер для получения некст данных
+                _InputBuffer.RemoveRange(0, HopSize);
             }
-            else
-            {
-                return inputBuffer;
-            }
+            Span<float> outSamples = stackalloc float[_OutputSamples.Count];
+            outSamples = [.._OutputSamples];
+            _OutputSamples.Clear();
+            return ConvertFloatToBytes(outSamples, _OutDevice.OutputWaveFormat);
         }
         /// <summary>
         /// Рассчитывает значения для всего спектра
@@ -195,11 +195,11 @@ namespace Equalizer.Service
             // переводим в децибелы и нормализует для визуализации
             for (int i = 0; i < FFTData.Length; i++)
             {
-                float magnitude = (float)Math.Sqrt(FFTData[i].X * FFTData[i].X + FFTData[i].Y * FFTData[i].Y);
+                float magnitude = (float)Math.Sqrt((FFTData[i].X * FFTData[i].X) + (FFTData[i].Y * FFTData[i].Y));
                 var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
                 _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
             }
-            SpectrumCalculated?.Invoke([.. _Spectrum]);
+            SpectrumCalculated?.Invoke(null, new SpectrumDataEventArgs([.. _Spectrum]));
         }
         /// <summary>
         /// Рассчитывает значения для фрейма из спектра спектра
@@ -218,11 +218,11 @@ namespace Equalizer.Service
             // переводим в децибелы и нормализует для визуализации
             for (int i = 0; i < FFTData.Length; i++)
             {
-                float magnitude = (float)Math.Sqrt(FFTData[i].X * FFTData[i].X + FFTData[i].Y * FFTData[i].Y);
+                float magnitude = (float)Math.Sqrt((FFTData[i].X * FFTData[i].X) + (FFTData[i].Y * FFTData[i].Y));
                 var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
                 _Spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);
             }
-            SpectrumCalculated?.Invoke([.. _Spectrum]);
+            SpectrumCalculated?.Invoke(null, new SpectrumDataEventArgs([.. _Spectrum]));
         }
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала
@@ -235,7 +235,7 @@ namespace Equalizer.Service
         /// <summary>
         /// Преобразует float[] в byte[] учитывая формат аудио
         /// </summary>
-        private static byte[] ConvertFloatToBytes(float[] samples, WaveFormat waveFormat)
+        private static byte[] ConvertFloatToBytes(Span<float> samples, WaveFormat waveFormat)
         {
             byte[] bytes = new byte[samples.Length * (waveFormat.BitsPerSample / 8)];
 
@@ -353,6 +353,10 @@ namespace Equalizer.Service
                 _OutDevice?.Stop();
             }
         }
+        /// <summary>
+        /// Меняет громкость устройства рендера(выходного)
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public void ChangeVolume(int Volume)
         {
             if (Volume < 0 || Volume > 100)
@@ -372,11 +376,15 @@ namespace Equalizer.Service
         }
         public DSProcessor()
         {
+            _FrameBuffer = new float[FrameSize];
+            _FFTBuffer = new Complex[FrameSize];
+            _IFFTBuffer = new float[FrameSize];
             _Spectrum = new float[FrameSize];
+            _OverlapBuffer = new float[FrameSize];
+            _OutputSamples = [];
+            _InputBuffer = [];
             FrequencyLines = [];
             _DefaultLine = new(0, 0);
-            _OverlapBuffer = new float[FrameSize];
-            _InputBuffer = [];
         }
         /// <summary>
         /// Возвращает список устройств доступных для вывода аудио сигнала

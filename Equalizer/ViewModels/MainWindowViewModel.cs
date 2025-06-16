@@ -44,9 +44,9 @@ namespace Equalizer.ViewModels
             if (value is not null)
                 Processor.ChangeDevices(value);
         }
-        private void OnSpectrumCalculated(float[] spectrum)
+        private void OnSpectrumCalculated(object? sender, SpectrumDataEventArgs e)
         {
-                SpectrumValues = [..spectrum];
+                SpectrumValues = [..e.SpectrumData];
         }
         public MainWindowViewModel()
         {

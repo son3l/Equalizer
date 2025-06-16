@@ -5,8 +5,8 @@ namespace Equalizer.Models
 {
     public class SpectrumDataEventArgs : EventArgs
     {
-        public List<float> SpectrumData { get; set; }
+        public float[] SpectrumData { get; set; }
         public SpectrumDataEventArgs() => SpectrumData = [];
-        public SpectrumDataEventArgs(List<float> data) => SpectrumData = data;
+        public SpectrumDataEventArgs(float[] data) => SpectrumData = data;
     }
 }
