@@ -92,9 +92,8 @@ namespace Equalizer.Service
                 };
                 _CaptureDevice.DataAvailable += (s, e) =>
                 {
-                    Span<byte> processedData = stackalloc byte[e.Buffer.Length];
-                    processedData = ProcessAudioData(e.Buffer, e.BytesRecorded);
-                    _BufferedWaveProvider.AddSamples([..processedData], 0, processedData.Length);
+                    byte[] processedData = ProcessAudioData(e.Buffer, e.BytesRecorded);
+                    _BufferedWaveProvider.AddSamples(processedData, 0, processedData.Length);
                 };
                 FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
                 _BufferedWaveProvider = new BufferedWaveProvider(_CaptureDevice.WaveFormat)
@@ -172,8 +171,7 @@ namespace Equalizer.Service
                 // чистим инпут буффер для получения некст данных
                 _InputBuffer.RemoveRange(0, HopSize);
             }
-            Span<float> outSamples = stackalloc float[_OutputSamples.Count];
-            outSamples = [.._OutputSamples];
+            float[] outSamples = [.._OutputSamples];
             _OutputSamples.Clear();
             return ConvertFloatToBytes(outSamples, _OutDevice.OutputWaveFormat);
         }
@@ -214,21 +212,17 @@ namespace Equalizer.Service
             // копируем данные
             for (int i = 0; i < spectrum.Length; i++)
             {
-                //fftBuffer[i] = new Complex() { X= frame[i], Y=0 };
                 fftBuffer[i].X = frame[i];
                 fftBuffer[i].Y = 0;
             }
             // прогоняем БПФ
             FastFourierTransform.FFT(true, (int)Math.Log2(spectrum.Length), fftBuffer);
             // 4. Вычисляем амплитуды и нормализуем
-            for (int i = 0; i < frame.Length; i++)
+            for (int i = 0; i < fftBuffer.Length; i++)
             {
-                /*float magnitude = (float)Math.Sqrt(fftBuffer[i].X * fftBuffer[i].X + fftBuffer[i].Y * fftBuffer[i].Y);
-                var dbValue = 20 * (float)Math.Log10(magnitude + 1e-10f);
-                spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0, 1);*/
                 float magnitude = MathF.Sqrt(fftBuffer[i].X * fftBuffer[i].X + fftBuffer[i].Y * fftBuffer[i].Y);
-                float dbValue = 20 * MathF.Log10(magnitude + 1e-10f);
-                spectrum[i] = Math.Clamp((dbValue + 60) / 60, 0f, 1f);
+                float dbValue = 20 * MathF.Log10(magnitude + 1e-10f); // логарифм амплитуды
+                spectrum[i] = Math.Clamp((dbValue + 100f) / 100f, 0f, 1f);
             }
             // освобождаем буфер обратно в пул
             ArrayPool<Complex>.Shared.Return(fftBuffer);
