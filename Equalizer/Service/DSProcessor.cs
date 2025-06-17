@@ -128,7 +128,9 @@ namespace Equalizer.Service
             if (FrequencyLines.Count == 0)
                   return inputBuffer;
             // считываем данные в инпут буфер
-            _InputBuffer.AddRange(ConvertBytesToFloats(inputBuffer, _OutDevice.OutputWaveFormat, bytesRecorded));
+            Span<float> samples = stackalloc float[bytesRecorded / (_OutDevice.OutputWaveFormat.BitsPerSample / 8)];
+            ConvertBytesToFloats(inputBuffer, samples, _OutDevice.OutputWaveFormat);
+            _InputBuffer.AddRange(samples);
             while (_InputBuffer.Count >= FrameSize)
             {
                 // берем кусок в 1024 элемента из инпут буфера
@@ -178,7 +180,6 @@ namespace Equalizer.Service
         /// <summary>
         /// Рассчитывает значения для всего спектра
         /// </summary>
-        // TODO неистово жрет память и тем самым напрягает GC
         [Obsolete("Сильно напрягает GC, лучше не использовать")]
         private void CalculateSpectrum(List<float> inputBuffer)
         {
@@ -277,33 +278,30 @@ namespace Equalizer.Service
         /// <summary>
         /// Преобразует byte[] в float[] учитывая формат аудио
         /// </summary>
-        private static float[] ConvertBytesToFloats(byte[] buffer, WaveFormat format, int bytesRecorded)
+        private static void ConvertBytesToFloats(byte[] buffer, Span<float> outSamples, WaveFormat format)
         {
-            int samplesCount = bytesRecorded / (format.BitsPerSample / 8);
-            float[] samples = new float[samplesCount];
             if (format.BitsPerSample == 16)
             {
-                for (int i = 0; i < samplesCount; i++)
+                for (int i = 0; i < outSamples.Length; i++)
                 {
-                    samples[i] = BitConverter.ToInt16(buffer, i * 2) / (float)short.MaxValue;
+                    outSamples[i] = BitConverter.ToInt16(buffer, i * 2) / (float)short.MaxValue;
                 }
             }
             else if (format.BitsPerSample == 32)
             {
-                for (int i = 0; i < samplesCount; i++)
+                for (int i = 0; i < outSamples.Length; i++)
                 {
                     if (format.Encoding == WaveFormatEncoding.IeeeFloat)
                     {
-                        samples[i] = BitConverter.ToSingle(buffer, i * 4);
+                        outSamples[i] = BitConverter.ToSingle(buffer, i * 4);
                     }
                     else
                     {
                         int sample = BitConverter.ToInt32(buffer, i * 4);
-                        samples[i] = sample / (float)int.MaxValue;
+                        outSamples[i] = sample / (float)int.MaxValue;
                     }
                 }
             }
-            return samples;
         }
         #endregion
         /// <summary>

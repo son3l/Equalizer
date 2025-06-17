@@ -89,9 +89,8 @@ namespace Equalizer.Controls
             if (SpectrumData == null || !SpectrumData.Any())
                 return;
 
-            float[] data = SpectrumData.ToArray();
             Span<float> aggregatedSpectrum = stackalloc float[1024/GroupSize];
-            AggregateSpectrum(data.AsSpan(), aggregatedSpectrum, GroupSize);
+            AggregateSpectrum(SpectrumData.ToArray().AsSpan(), aggregatedSpectrum, GroupSize);
             if (SmoothingEnabled)
             {
                 aggregatedSpectrum = ApplySmoothing(aggregatedSpectrum);
@@ -116,7 +115,7 @@ namespace Equalizer.Controls
 
             return _smoothedValues;
         }
-
+        //TODO решить баг с шириной бандов
         private void DrawSpectrum(DrawingContext context, Span<float> data)
         {
             if (Bounds.Width <= 0 || Bounds.Height <= 0)
@@ -141,7 +140,7 @@ namespace Equalizer.Controls
                 int end = start + groupSize;
                 for (int j = start; j < end; j++)
                 {
-                    sum = sum + input[j];
+                    sum += input[j];
                 }
                 output[i] = sum / groupSize; 
             }
