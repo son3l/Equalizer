@@ -32,7 +32,7 @@
     <Style Selector="Border.FrequencyBorder > StackPanel > Slider">
         <Setter Property="HorizontalAlignment" Value="Center" />
         <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="Foreground" Value="#367dbb" />
+        <Setter Property="Foreground" Value="#498cb8" />
         <Setter Property="Background" Value="#323233" />
         <Setter Property="TickPlacement" Value="Outside" />
         <Setter Property="TickFrequency" Value="0.5" />
@@ -40,5 +40,11 @@
         <Setter Property="Orientation" Value="Vertical" />
         <Setter Property="IsSnapToTickEnabled" Value="True" />
         <Setter Property="Height" Value="300" />
+    </Style>
+    <Style Selector="Border.FrequencyBorder > StackPanel > Slider /template/ Thumb">
+        <Setter Property="Background" Value="#498cb8" />
+    </Style>
+    <Style Selector="Border.FrequencyBorder > StackPanel > Slider /template/ Thumb:pointerover">
+        <Setter Property="RenderTransform" Value="scale(1.1)" />
     </Style>
 </Styles>

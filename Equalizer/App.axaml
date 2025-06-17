@@ -14,5 +14,16 @@
         <FluentTheme />
         <StyleInclude Source="/Styles/FrequencySliderBar.axaml" />
         <StyleInclude Source="/Styles/Buttons.axaml" />
+        <StyleInclude Source="/Styles/Spectrum.axaml" />
     </Application.Styles>
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <MergeResourceInclude Source="/Styles/ComboBox.axaml" />
+                <MergeResourceInclude Source="/Styles/ComboBoxItem.axaml" />
+                <MergeResourceInclude Source="/Styles/MenuItem.axaml" />
+                <MergeResourceInclude Source="/Styles/Menu.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

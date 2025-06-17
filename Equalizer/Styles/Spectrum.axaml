@@ -1,0 +1,26 @@
+<Styles
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Equalizer.Controls">
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!--  Add Controls for Previewer Here  -->
+        </Border>
+    </Design.PreviewWith>
+    <Style Selector="controls|SpectrumVisualizer">
+        <Setter Property="Margin" Value="3" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="BarSpacing" Value="3" />
+        <Setter Property="GroupSize" Value="16" />
+        <Setter Property="MinBarHeight" Value="3" />
+        <Setter Property="SmoothingEnabled" Value="True" />
+        <Setter Property="BarBrush">
+            <LinearGradientBrush StartPoint="0,10" EndPoint="0,100">
+                <LinearGradientBrush.GradientStops>
+                    <GradientStop Offset="0" Color="#498cb8" />
+                    <GradientStop Offset="1" Color="#D0D0D0" />
+                </LinearGradientBrush.GradientStops>
+            </LinearGradientBrush>
+        </Setter>
+    </Style>
+</Styles>

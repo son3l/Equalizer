@@ -30,7 +30,6 @@
                 HorizontalAlignment="Center"
                 Foreground="#D0D0D0"
                 Text="Выберите полосы для удаления" />
-            <!--  TODO сделать стили  -->
             <ListBox
                 Grid.Row="1"
                 Background="#2C2C2C"

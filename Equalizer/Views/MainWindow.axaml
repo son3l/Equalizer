@@ -25,7 +25,7 @@
         </EventTriggerBehavior>
     </Interaction.Behaviors>
     <Grid Background="#1E1E1E" RowDefinitions="20,*,*">
-        <!--  TODO сделать стили, сделать окно добавления полосы  -->
+        <!--  TODO сделать окно добавления полосы  -->
         <Menu Grid.Row="0" Margin="5">
             <MenuItem Foreground="#D0D0D0" Header="Полосы">
                 <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
@@ -52,14 +52,12 @@
                 <Button
                     Width="100"
                     Height="32"
-                    Classes="default"
                     Command="{Binding PlayCommand}">
                     <TextBlock HorizontalAlignment="Center" Text="Play" />
                 </Button>
                 <Button
                     Width="100"
                     Height="32"
-                    Classes="default"
                     Command="{Binding StopCommand}">
                     <TextBlock HorizontalAlignment="Center" Text="Stop" />
                 </Button>
@@ -93,16 +91,7 @@
                 BorderBrush="#333"
                 BorderThickness="1"
                 CornerRadius="6">
-                <controls:SpectrumVisualizer
-                    Height="100"
-                    Margin="5"
-                    HorizontalAlignment="Stretch"
-                    BarBrush="#D0D0D0"
-                    BarSpacing="3"
-                    GroupSize="16"
-                    MinBarHeight="3"
-                    SmoothingEnabled="True"
-                    SpectrumData="{Binding SpectrumValues}" />
+                <controls:SpectrumVisualizer SpectrumData="{Binding SpectrumValues}" />
             </Border>
         </StackPanel>
     </Grid>
