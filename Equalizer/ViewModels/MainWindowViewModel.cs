@@ -52,6 +52,11 @@ namespace Equalizer.ViewModels
             {
                 SpectrumValues = [.. spectrum];
             };
+            //тестовый спектр
+            for (int i = 0; i < 512; i++)
+            {
+                SpectrumValues.Add((float)new Random().NextDouble());
+            }
             Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
             //тестовые полосы
             Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = " low BASS" });
@@ -126,7 +131,7 @@ namespace Equalizer.ViewModels
             if (file is not null)
             {
                 using Stream stream = await file.OpenWriteAsync();
-                await JsonSerializer.SerializeAsync(stream, Processor.FrequencyLines);
+                await JsonSerializer.SerializeAsync(stream, Processor.FrequencyLines.ToArray());
             }
         }
         /// <summary>
@@ -147,20 +152,25 @@ namespace Equalizer.ViewModels
                 FileTypeFilter =
                     [
                     new FilePickerFileType("Конфиг полос эквалайзера (.lines)")
-                        {
-                            Patterns = [ "*.lines" ]
-                        }
+                         {
+                             Patterns = [ "*.lines" ]
+                         }
                     ]
             });
             if (file is not null && file.Count != 0)
             {
                 using Stream stream = await file[0].OpenReadAsync();
-                var lines = await JsonSerializer.DeserializeAsync<ObservableCollection<FrequencyLine>>(stream);
+                var lines = await JsonSerializer.DeserializeAsync<FrequencyLine[]>(stream);
                 if (lines is not null)
                 {
                     Processor.FrequencyLines.Clear();
                     foreach (var line in lines)
-                        Processor.FrequencyLines.Add(line);
+                        Processor.FrequencyLines.Add(
+                            new FrequencyLine(line.From, line.To)
+                            {
+                                GainDecibells = line.GainDecibells,
+                                Name = line.Name
+                            });
                 }
             }
 
@@ -179,12 +189,33 @@ namespace Equalizer.ViewModels
             .ShowDialog<ObservableCollection<FrequencyLine>>((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
             if (result is not null)
             {
-                //копируем массив чтобы итератор не сдох при очередном закрытии окна
+                //копируем массив чтобы итератор не сдох 
                 ObservableCollection<FrequencyLine> copyedResult = [.. result];
                 foreach (FrequencyLine item in copyedResult)
                 {
                     Processor.FrequencyLines.Remove(item);
                 }
+            }
+        }
+        /// <summary>
+        /// Открываем диалоговое окно добавления полос 
+        /// </summary>
+        [RelayCommand]
+        private async Task OpenAddLines()
+        {
+            FrequencyLine result = await new AddLineWindow()
+            {
+                WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+            }
+            .ShowDialog<FrequencyLine>((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            if (result is not null)
+            {
+                Processor.FrequencyLines.Add(
+                    new FrequencyLine(result.From, result.To) 
+                    { 
+                        GainDecibells = 0, 
+                        Name = result.Name 
+                    });
             }
         }
         /// <summary>

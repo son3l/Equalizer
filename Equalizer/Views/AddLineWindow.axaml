@@ -1,0 +1,90 @@
+<Window
+    x:Class="Equalizer.AddLineWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Equalizer.ViewModels"
+    Title="AddLineWindow"
+    Width="500"
+    Height="250"
+    d:DesignHeight="250"
+    d:DesignWidth="500"
+    x:DataType="vm:AddLineWindowViewModel"
+    Background="Transparent"
+    CanResize="False"
+    Opacity="0.8"
+    SystemDecorations="None"
+    mc:Ignorable="d">
+    <Window.DataContext>
+        <vm:AddLineWindowViewModel />
+    </Window.DataContext>
+    <Border
+        BorderBrush="#555"
+        BorderThickness="3"
+        CornerRadius="3">
+        <Grid Background="#1E1E1E" RowDefinitions="50,*,50">
+            <TextBlock
+                Grid.Row="0"
+                Margin="10"
+                HorizontalAlignment="Center"
+                Foreground="#D0D0D0"
+                Text="Укажите значения для новой полосы" />
+            <StackPanel Grid.Row="1" Spacing="10">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="10">
+                    <TextBlock
+                        Width="80"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="#D0D0D0"
+                        Text="Начальная частота"
+                        TextWrapping="Wrap" />
+                    <NumericUpDown
+                        AllowSpin="True"
+                        Increment="500"
+                        Value="{Binding From}" />
+                    <TextBlock
+                        Width="70"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="#D0D0D0"
+                        Text="Конечная частота"
+                        TextWrapping="Wrap" />
+                    <NumericUpDown
+                        AllowSpin="True"
+                        Increment="500"
+                        Value="{Binding To}" />
+                </StackPanel>
+                <StackPanel HorizontalAlignment="Center" Spacing="5">
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Foreground="#D0D0D0"
+                        Text="Название полосы" />
+                    <TextBox Width="250" Text="{Binding Name, Mode=TwoWay}" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel
+                Grid.Row="2"
+                HorizontalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="10">
+                <Button
+                    Classes="default"
+                    Command="{Binding AddCommandCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                    <TextBlock Text="Добавить" />
+                </Button>
+                <Button
+                    Classes="default"
+                    Command="{Binding CancelCommandCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                    <TextBlock Text="Отмена" />
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

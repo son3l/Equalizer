@@ -124,8 +124,8 @@ namespace Equalizer.Service
         /// </summary>
         private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
-            //почему то при возврате инпут буфера происходит какая то дичь
-            if (FrequencyLines.Count == 0)
+            // TODO почему то при возврате инпут буфера происходит какая то дичь
+            if (FrequencyLines is null || FrequencyLines.Count == 0)
                   return inputBuffer;
             // считываем данные в инпут буфер
             Span<float> samples = stackalloc float[bytesRecorded / (_OutDevice.OutputWaveFormat.BitsPerSample / 8)];
@@ -210,6 +210,7 @@ namespace Equalizer.Service
             var fftBuffer = ArrayPool<Complex>.Shared.Rent(frame.Length);
             // создаем буфер спектра в стеке
             Span<float> spectrum = stackalloc float[FrameSize];
+            Span<float> calculatedSpectrum = stackalloc float[HopSize];
             // копируем данные
             for (int i = 0; i < spectrum.Length; i++)
             {
@@ -227,8 +228,9 @@ namespace Equalizer.Service
             }
             // освобождаем буфер обратно в пул
             ArrayPool<Complex>.Shared.Return(fftBuffer);
+            spectrum.Slice(0, HopSize).CopyTo(calculatedSpectrum);
             // дергаем ивент 
-            SpectrumCalcucatedHandler?.Invoke(spectrum);
+            SpectrumCalcucatedHandler?.Invoke(calculatedSpectrum);
         }
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала

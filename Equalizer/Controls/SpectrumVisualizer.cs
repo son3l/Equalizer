@@ -12,25 +12,43 @@ namespace Equalizer.Controls
 {
     public class SpectrumVisualizer : Control
     {
+        /// <summary>
+        /// Массив данных спектра
+        /// </summary>
         public static readonly StyledProperty<IEnumerable<float>?> SpectrumDataProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, IEnumerable<float>?>(
                 nameof(SpectrumData));
+        /// <summary>
+        /// Кисть для столбиков
+        /// </summary>
         public static readonly StyledProperty<IBrush> BarBrushProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, IBrush>(
                 nameof(BarBrush),
                 new SolidColorBrush(Colors.LimeGreen));
+        /// <summary>
+        /// Минимальная высота столбиков
+        /// </summary>
         public static readonly StyledProperty<double> MinBarHeightProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, double>(
                 nameof(MinBarHeight),
                 2.0);
+        /// <summary>
+        /// Размер пропусков между стобликами
+        /// </summary>
         public static readonly StyledProperty<double> BarSpacingProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, double>(
                 nameof(BarSpacing),
                 1.0);
+        /// <summary>
+        /// Булево вкл и выкл сглаживание изменения высоты столбиков
+        /// </summary>
         public static readonly StyledProperty<bool> SmoothingEnabledProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, bool>(
                 nameof(SmoothingEnabled),
                 true);
+        /// <summary>
+        /// Размер группировки стобликов (например было 1024, мы поставили GroupSize = 16, значит в итоге будет столбиков 64 с средним значением группы из 16 столбиков)
+        /// </summary>
         public static readonly StyledProperty<int> GroupSizeProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, int>(
                 nameof(GroupSize),
@@ -89,7 +107,7 @@ namespace Equalizer.Controls
             if (SpectrumData == null || !SpectrumData.Any())
                 return;
 
-            Span<float> aggregatedSpectrum = stackalloc float[1024/GroupSize];
+            Span<float> aggregatedSpectrum = stackalloc float[SpectrumData.Count()/ GroupSize];
             AggregateSpectrum(SpectrumData.ToArray().AsSpan(), aggregatedSpectrum, GroupSize);
             if (SmoothingEnabled)
             {
@@ -115,12 +133,11 @@ namespace Equalizer.Controls
 
             return _smoothedValues;
         }
-        //TODO решить баг с шириной бандов
         private void DrawSpectrum(DrawingContext context, Span<float> data)
         {
             if (Bounds.Width <= 0 || Bounds.Height <= 0)
                 return;
-            double barWidth = Math.Max(1, (Bounds.Width - (data.Length - 1) * BarSpacing) / data.Length);
+            double barWidth = (Bounds.Width - (data.Length - 1) * BarSpacing) / data.Length;
             for (int i = 0; i < data.Length; i++)
             {
                 double normalizedValue = Math.Clamp(data[i],0,1);

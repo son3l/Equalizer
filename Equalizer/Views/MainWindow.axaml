@@ -25,11 +25,13 @@
         </EventTriggerBehavior>
     </Interaction.Behaviors>
     <Grid Background="#1E1E1E" RowDefinitions="20,*,*">
-        <!--  TODO сделать окно добавления полосы  -->
         <Menu Grid.Row="0" Margin="5">
             <MenuItem Foreground="#D0D0D0" Header="Полосы">
                 <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
                 <MenuItem Command="{Binding OpenDeleteLinesCommand}" Header="Удалить" />
+                <MenuItem Command="{Binding OpenAddLinesCommand}" Header="Добавить" />
+            </MenuItem>
+            <MenuItem Foreground="#D0D0D0" Header="Пресеты">
                 <MenuItem Command="{Binding SaveLinesCommand}" Header="Сохранить" />
                 <MenuItem Command="{Binding LoadLinesCommand}" Header="Загрузить" />
             </MenuItem>
