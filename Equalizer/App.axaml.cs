@@ -1,23 +1,51 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Equalizer.Models;
 using Equalizer.ViewModels;
 using Equalizer.Views;
+using NAudio.CoreAudioApi;
+using System;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Equalizer
 {
     public partial class App : Application
     {
+        public static Settings Settings { get; set; }
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
         }
+        private async Task LoadSettings()
+        {
+            try
+            {
+                using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.Open, FileAccess.Read);
+                Settings? settings = await JsonSerializer.DeserializeAsync<Settings>(fileStream) ?? throw new Exception();
+                Settings = settings;
+            }
+            catch
+            {
+                Settings = new()
+                {
+                    DefaultCaptureDeviceName = new MMDeviceEnumerator()
+                        .EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
+                        .First().FriendlyName
+                };
+                using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.OpenOrCreate, FileAccess.Write);
+                await JsonSerializer.SerializeAsync(fileStream, Settings);
+                await fileStream.FlushAsync();
+            }
+        }
 
         public override void OnFrameworkInitializationCompleted()
         {
+            var _ = LoadSettings();
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 DisableAvaloniaDataAnnotationValidation();

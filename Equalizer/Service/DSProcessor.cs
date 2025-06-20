@@ -93,7 +93,7 @@ namespace Equalizer.Service
                 _CaptureDevice.DataAvailable += (s, e) =>
                 {
                     byte[] processedData = ProcessAudioData(e.Buffer, e.BytesRecorded);
-                    _BufferedWaveProvider.AddSamples(processedData, 0, processedData.Length);
+                     _BufferedWaveProvider.AddSamples(processedData, 0, processedData.Length);
                 };
                 FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
                 _BufferedWaveProvider = new BufferedWaveProvider(_CaptureDevice.WaveFormat)
@@ -143,7 +143,8 @@ namespace Equalizer.Service
                 }
                 for (int i = 0; i < FrameSize; i++)
                 {
-                    _FFTBuffer[i] = new Complex { X = _FrameBuffer[i], Y = 0 };
+                    _FFTBuffer[i].X = _FrameBuffer[i];
+                    _FFTBuffer[i].Y = 0;
                 }
                 // обрабатываем массив комплексных чисел для перевода спектра из время/частоты в амплитуды/частоты
                 FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), _FFTBuffer);
@@ -173,7 +174,8 @@ namespace Equalizer.Service
                 // чистим инпут буффер для получения некст данных
                 _InputBuffer.RemoveRange(0, HopSize);
             }
-            float[] outSamples = [.._OutputSamples];
+            Span<float> outSamples = stackalloc float[_OutputSamples.Count];
+            _OutputSamples.CopyTo(outSamples);
             _OutputSamples.Clear();
             return ConvertFloatToBytes(outSamples, _OutDevice.OutputWaveFormat);
         }
@@ -246,7 +248,6 @@ namespace Equalizer.Service
         private static byte[] ConvertFloatToBytes(Span<float> samples, WaveFormat waveFormat)
         {
             byte[] bytes = new byte[samples.Length * (waveFormat.BitsPerSample / 8)];
-
             if (waveFormat.BitsPerSample == 16)
             {
                 for (int i = 0; i < samples.Length; i++)

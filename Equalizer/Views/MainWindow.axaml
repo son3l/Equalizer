@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Equalizer.ViewModels"
     Title="Equalizer"
-    Width="950"
+    Width="1064"
     Height="650"
     MinWidth="350"
     MinHeight="650"
@@ -23,18 +23,22 @@
         <EventTriggerBehavior EventName="Closing">
             <InvokeCommandAction Command="{Binding ClosingCommand}" />
         </EventTriggerBehavior>
+        <EventTriggerBehavior EventName="Loaded">
+            <InvokeCommandAction Command="{Binding StartupCommand}" />
+        </EventTriggerBehavior>
     </Interaction.Behaviors>
     <Grid Background="#1E1E1E" RowDefinitions="20,*,*">
         <Menu Grid.Row="0" Margin="5">
-            <MenuItem Foreground="#D0D0D0" Header="Полосы">
+            <MenuItem Header="Полосы">
                 <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
                 <MenuItem Command="{Binding OpenDeleteLinesCommand}" Header="Удалить" />
                 <MenuItem Command="{Binding OpenAddLinesCommand}" Header="Добавить" />
             </MenuItem>
-            <MenuItem Foreground="#D0D0D0" Header="Пресеты">
+            <MenuItem Header="Пресеты">
                 <MenuItem Command="{Binding SaveLinesCommand}" Header="Сохранить" />
                 <MenuItem Command="{Binding LoadLinesCommand}" Header="Загрузить" />
             </MenuItem>
+            <MenuItem Command="{Binding OpenSettingsCommand}" Header="Настройки" />
         </Menu>
         <StackPanel
             Grid.Row="1"

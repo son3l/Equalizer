@@ -1,0 +1,93 @@
+<Window
+    x:Class="Equalizer.SettingsWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:Equalizer.ViewModels"
+    Title="AddLineWindow"
+    Width="500"
+    Height="280"
+    d:DesignHeight="280"
+    d:DesignWidth="500"
+    x:DataType="vm:SettingsWindowViewModel"
+    Background="Transparent"
+    CanResize="False"
+    Opacity="0.8"
+    SystemDecorations="None"
+    mc:Ignorable="d">
+    <Window.DataContext>
+        <vm:SettingsWindowViewModel />
+    </Window.DataContext>
+    <Border
+        BorderBrush="#555"
+        BorderThickness="3"
+        CornerRadius="3">
+        <Grid Background="#1E1E1E" RowDefinitions="50,*,50">
+            <TextBlock
+                Grid.Row="0"
+                Margin="10"
+                HorizontalAlignment="Center"
+                Foreground="#D0D0D0"
+                Text="Настройки" />
+            <StackPanel
+                Grid.Row="1"
+                HorizontalAlignment="Center"
+                Spacing="10">
+                <CheckBox
+                    HorizontalAlignment="Center"
+                    BorderBrush="#D0D0D0"
+                    Content="загружать дефолтный пресет при запуске"
+                    Foreground="#D0D0D0"
+                    IsChecked="{Binding Settings.UseOnStartupDefaultPreset}" />
+                <StackPanel
+                    IsEnabled="{Binding Settings.UseOnStartupDefaultPreset}"
+                    Orientation="Horizontal"
+                    Spacing="20">
+                    <TextBlock
+                        Width="60"
+                        VerticalAlignment="Center"
+                        Foreground="#D0D0D0"
+                        Text="Путь до пресета"
+                        TextWrapping="Wrap" />
+                    <TextBox
+                        Width="250"
+                        Text="{Binding Settings.PathToDefaultPreset}"
+                        TextWrapping="Wrap" />
+                    <Button Command="{Binding OpenExplorerCommand}">
+                        <TextBlock
+                            Width="80"
+                            Text="Открыть проводник"
+                            TextWrapping="Wrap" />
+                    </Button>
+                </StackPanel>
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    Foreground="#D0D0D0"
+                    Text="Дефолтное устройство захвата" />
+                <ComboBox
+                    HorizontalAlignment="Center"
+                    ItemsSource="{Binding Devices}"
+                    SelectedItem="{Binding SelectedDevice}" />
+            </StackPanel>
+            <StackPanel
+                Grid.Row="2"
+                HorizontalAlignment="Center"
+                Orientation="Horizontal"
+                Spacing="10">
+                <Button
+                    Classes="default"
+                    Command="{Binding EditCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                    <TextBlock Text="Изменить" />
+                </Button>
+                <Button
+                    Classes="default"
+                    Command="{Binding CancelCommand}"
+                    CommandParameter="{Binding RelativeSource={RelativeSource AncestorType=Window}}">
+                    <TextBlock Text="Отмена" />
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
