@@ -55,7 +55,7 @@ namespace Equalizer.ViewModels
             SpectrumValues = [];
             Processor.SpectrumCalcucatedHandler += (spectrum) =>
             {
-                SpectrumValues = [.. spectrum];
+                SpectrumValues = [..spectrum];
             };
             //тестовый спектр
             for (int i = 0; i < 512; i++)

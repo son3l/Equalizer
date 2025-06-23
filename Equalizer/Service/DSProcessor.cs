@@ -1,5 +1,4 @@
 ﻿using Equalizer.Models;
-using Microsoft.VisualBasic;
 using NAudio.CoreAudioApi;
 using NAudio.Dsp;
 using NAudio.Wave;
@@ -39,7 +38,7 @@ namespace Equalizer.Service
         /// <summary>
         /// Ивент который срабатывает при пересчете фрейма спектра
         /// </summary>
-        public delegate void SpectrumCalcucated(Span<float> spectrum);
+        public delegate void SpectrumCalcucated(float[] spectrum);
         public SpectrumCalcucated SpectrumCalcucatedHandler { get; set; }
         /// <summary>
         /// Размер фрейма для работы с окнами и перекрытием (обычно степень двойки)
@@ -76,7 +75,10 @@ namespace Equalizer.Service
         /// <summary>
         /// Шаг дискретизации
         /// </summary>
+        //-------------------------------
         private float FrequencyStep;
+        private int SpectrumFramesCount;
+        //-------------------------------
         /// <summary>
         /// Инициализирует устройство вывода и устройство для захвата
         /// </summary>
@@ -92,8 +94,7 @@ namespace Equalizer.Service
                 };
                 _CaptureDevice.DataAvailable += (s, e) =>
                 {
-                    byte[] processedData = ProcessAudioData(e.Buffer, e.BytesRecorded);
-                     _BufferedWaveProvider.AddSamples(processedData, 0, processedData.Length);
+                    ProcessAudioData(e.Buffer, e.BytesRecorded);
                 };
                 FrequencyStep = _CaptureDevice.WaveFormat.SampleRate / (float)FrameSize;
                 _BufferedWaveProvider = new BufferedWaveProvider(_CaptureDevice.WaveFormat)
@@ -122,20 +123,29 @@ namespace Equalizer.Service
         /// <summary>
         /// Обрабатывает данные с устройства захвата по добавленным полосам и возвращает обработанные данные
         /// </summary>
-        private byte[] ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
+        private void ProcessAudioData(byte[] inputBuffer, int bytesRecorded)
         {
             // TODO почему то при возврате инпут буфера происходит какая то дичь
             if (FrequencyLines is null || FrequencyLines.Count == 0)
-                  return inputBuffer;
+                return;
             // считываем данные в инпут буфер
-            Span<float> samples = stackalloc float[bytesRecorded / (_OutDevice.OutputWaveFormat.BitsPerSample / 8)];
-            ConvertBytesToFloats(inputBuffer, samples, _OutDevice.OutputWaveFormat);
-            _InputBuffer.AddRange(samples);
+            float[] floats = ArrayPool<float>.Shared.Rent(bytesRecorded / (_OutDevice.OutputWaveFormat.BitsPerSample / 8));
+            ConvertBytesToFloats(inputBuffer, floats, bytesRecorded / (_OutDevice.OutputWaveFormat.BitsPerSample / 8), _OutDevice.OutputWaveFormat);
+            ArrayPool<float>.Shared.Return(floats);
+            for (int i = 0; i < bytesRecorded / (_OutDevice.OutputWaveFormat.BitsPerSample / 8); i++)
+            {
+                _InputBuffer.Add(floats[i]);
+            }
             while (_InputBuffer.Count >= FrameSize)
             {
                 // берем кусок в 1024 элемента из инпут буфера
                 _InputBuffer.CopyTo(0, _FrameBuffer, 0, FrameSize);
-                CalculateSpectrumForFrame(_FrameBuffer);
+                SpectrumFramesCount++;
+                if (SpectrumFramesCount > 10)
+                {
+                    CalculateSpectrumForFrame(_FrameBuffer);
+                    SpectrumFramesCount = 0;
+                }
                 // добавляем окно в кусок элементов
                 for (int i = 0; i < FrameSize; i++)
                 {
@@ -160,6 +170,7 @@ namespace Equalizer.Service
                 // преобразуем обратно из амплитуды/частоты в время/частоты
                 FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), _FFTBuffer);
                 // записываем в выходной буфер массив после преобразования бпф и перекрытие
+                //TODO почему то жрет память пиздец
                 for (int i = 0; i < FrameSize; i++)
                 {
                     _IFFTBuffer[i] = _FFTBuffer[i].X + _OverlapBuffer[i];
@@ -174,10 +185,12 @@ namespace Equalizer.Service
                 // чистим инпут буффер для получения некст данных
                 _InputBuffer.RemoveRange(0, HopSize);
             }
-            Span<float> outSamples = stackalloc float[_OutputSamples.Count];
-            _OutputSamples.CopyTo(outSamples);
+            int size = _OutputSamples.Count * (_OutDevice.OutputWaveFormat.BitsPerSample / 8);
+            byte[] floats1 = ArrayPool<byte>.Shared.Rent(size);
+            ConvertFloatToBytes(_OutputSamples, floats1, size, _OutDevice.OutputWaveFormat);
             _OutputSamples.Clear();
-            return ConvertFloatToBytes(outSamples, _OutDevice.OutputWaveFormat);
+            _BufferedWaveProvider.AddSamples(floats1, 0, size);
+            ArrayPool<byte>.Shared.Return(floats1, true);
         }
         /// <summary>
         /// Рассчитывает значения для всего спектра
@@ -209,10 +222,8 @@ namespace Equalizer.Service
         private void CalculateSpectrumForFrame(float[] frame)
         {
             // создаем буфер БПФ из пула массивов
-            var fftBuffer = ArrayPool<Complex>.Shared.Rent(frame.Length);
-            // создаем буфер спектра в стеке
-            Span<float> spectrum = stackalloc float[FrameSize];
-            Span<float> calculatedSpectrum = stackalloc float[HopSize];
+            var fftBuffer = ArrayPool<Complex>.Shared.Rent(FrameSize);
+            var spectrum = new float[HopSize];
             // копируем данные
             for (int i = 0; i < spectrum.Length; i++)
             {
@@ -220,19 +231,18 @@ namespace Equalizer.Service
                 fftBuffer[i].Y = 0;
             }
             // прогоняем БПФ
-            FastFourierTransform.FFT(true, (int)Math.Log2(spectrum.Length), fftBuffer);
-            // 4. Вычисляем амплитуды и нормализуем
-            for (int i = 0; i < fftBuffer.Length; i++)
+            FastFourierTransform.FFT(true, (int)Math.Log2(FrameSize), fftBuffer);
+            // вычисляем амплитуды и нормализуем
+            for (int i = 0; i < HopSize; i++)
             {
                 float magnitude = MathF.Sqrt(fftBuffer[i].X * fftBuffer[i].X + fftBuffer[i].Y * fftBuffer[i].Y);
-                float dbValue = 20 * MathF.Log10(magnitude + 1e-10f); // логарифм амплитуды
+                float dbValue = 20 * MathF.Log10(magnitude + 1e-10f);
                 spectrum[i] = Math.Clamp((dbValue + 100f) / 100f, 0f, 1f);
             }
             // освобождаем буфер обратно в пул
             ArrayPool<Complex>.Shared.Return(fftBuffer);
-            spectrum.Slice(0, HopSize).CopyTo(calculatedSpectrum);
             // дергаем ивент 
-            SpectrumCalcucatedHandler?.Invoke(calculatedSpectrum);
+            SpectrumCalcucatedHandler?.Invoke(spectrum);
         }
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала
@@ -245,57 +255,59 @@ namespace Equalizer.Service
         /// <summary>
         /// Преобразует float[] в byte[] учитывая формат аудио
         /// </summary>
-        private static byte[] ConvertFloatToBytes(Span<float> samples, WaveFormat waveFormat)
+        private static void ConvertFloatToBytes(List<float> samples, byte[] outSamples, int size, WaveFormat waveFormat)
         {
-            byte[] bytes = new byte[samples.Length * (waveFormat.BitsPerSample / 8)];
             if (waveFormat.BitsPerSample == 16)
             {
-                for (int i = 0; i < samples.Length; i++)
+                for (int i = 0; i < samples.Count; i++)
                 {
                     float clampedSample = Math.Clamp(samples[i], -1f, 1f);
                     byte[] sampleBytes = BitConverter.GetBytes((short)clampedSample * short.MaxValue);
-                    bytes[i * 2] = sampleBytes[0];
-                    bytes[(i * 2) + 1] = sampleBytes[1];
+                    outSamples[i * 2] = sampleBytes[0];
+                    outSamples[(i * 2) + 1] = sampleBytes[1];
                 }
             }
             else if (waveFormat.BitsPerSample == 32)
             {
-                for (int i = 0; i < samples.Length; i++)
+                Span<byte> sampleBytes = stackalloc byte[4];
+                for (int i = 0; i < samples.Count; i++)
                 {
-                    byte[] sampleBytes;
                     if (waveFormat.Encoding == WaveFormatEncoding.IeeeFloat)
                     {
                         float clampedSample = Math.Clamp(samples[i], -1f, 1f);
-                        sampleBytes = BitConverter.GetBytes(clampedSample);
+                        BitConverter.TryWriteBytes(sampleBytes, clampedSample);
                     }
                     else
                     {
                         float clampedSample = Math.Clamp(samples[i], -1f, 1f);
                         sampleBytes = BitConverter.GetBytes(clampedSample * int.MaxValue);
                     }
-                    Array.Copy(sampleBytes, 0, bytes, i * 4, 4);
+                    for (int j = 0; j < 4; j++)
+                    {
+                        outSamples[i * 4 + j] = sampleBytes[j];
+                    }
                 }
             }
-            return bytes;
         }
         /// <summary>
         /// Преобразует byte[] в float[] учитывая формат аудио
         /// </summary>
-        private static void ConvertBytesToFloats(byte[] buffer, Span<float> outSamples, WaveFormat format)
+        private static void ConvertBytesToFloats(byte[] buffer, float[] outSamples, int size, WaveFormat format)
         {
             if (format.BitsPerSample == 16)
             {
-                for (int i = 0; i < outSamples.Length; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outSamples[i] = BitConverter.ToInt16(buffer, i * 2) / (float)short.MaxValue;
                 }
             }
             else if (format.BitsPerSample == 32)
             {
-                for (int i = 0; i < outSamples.Length; i++)
+                for (int i = 0; i < size; i++)
                 {
                     if (format.Encoding == WaveFormatEncoding.IeeeFloat)
                     {
+
                         outSamples[i] = BitConverter.ToSingle(buffer, i * 4);
                     }
                     else
@@ -388,7 +400,7 @@ namespace Equalizer.Service
             _Spectrum = new float[FrameSize];
             _OverlapBuffer = new float[FrameSize];
             _OutputSamples = [];
-            _InputBuffer = [];
+            _InputBuffer = new(10_000);
             FrequencyLines = [];
             _DefaultLine = new(0, 0);
         }
