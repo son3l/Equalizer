@@ -5,14 +5,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Equalizer.Models;
 using NAudio.CoreAudioApi;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Equalizer.ViewModels
@@ -43,25 +39,36 @@ namespace Equalizer.ViewModels
         [RelayCommand]
         private void Edit(Window window)
         {
-            if (App.Settings.Equals(Settings))
+            string[] properties = new string[4];
+            int i = 0;
+            if (App.Settings.DefaultCaptureDeviceName != Settings.DefaultCaptureDeviceName)
             {
-                window.Close(SettingsChanges.None);
+                properties[i++] = nameof(App.Settings.DefaultCaptureDeviceName);
+                App.Settings.DefaultCaptureDeviceName = Settings.DefaultCaptureDeviceName;
             }
-            else if (App.Settings.DefaultCaptureDeviceName != Settings.DefaultCaptureDeviceName)
+            if (App.Settings.UseOnStartupDefaultPreset != Settings.UseOnStartupDefaultPreset)
             {
-                App.Settings = Settings;
-                window.Close(SettingsChanges.DefaultCaptureDeviceName);
+                properties[i++] = nameof(App.Settings.UseOnStartupDefaultPreset);
+                App.Settings.UseOnStartupDefaultPreset = Settings.UseOnStartupDefaultPreset;
             }
-            else
+            if (App.Settings.PathToDefaultPreset != Settings.PathToDefaultPreset)
             {
-                App.Settings = Settings;
-                window.Close(SettingsChanges.Others);
+                properties[i++] = nameof(App.Settings.PathToDefaultPreset);
+                App.Settings.PathToDefaultPreset = Settings.PathToDefaultPreset;
             }
+            if (App.Settings.UseSmoothing != Settings.UseSmoothing)
+            {
+                properties[i++] = nameof(App.Settings.UseSmoothing);
+                App.Settings.UseSmoothing = Settings.UseSmoothing;
+            }
+            App.SettingsChangedHandler?.Invoke(properties);
+            window.Close();
+
         }
         [RelayCommand]
-        private void Cancel(Window window) => window.Close(SettingsChanges.None);
+        private void Cancel(Window window) => window.Close();
         [RelayCommand]
-        private async Task OpenExplorer() 
+        private async Task OpenExplorer()
         {
             IReadOnlyList<IStorageFile> file = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
             {

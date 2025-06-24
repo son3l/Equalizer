@@ -13,7 +13,6 @@
         <Setter Property="BarSpacing" Value="2" />
         <Setter Property="GroupSize" Value="16" />
         <Setter Property="MinBarHeight" Value="3" />
-        <Setter Property="SmoothingEnabled" Value="True" />
         <Setter Property="BarBrush">
             <LinearGradientBrush StartPoint="0,10" EndPoint="0,100">
                 <LinearGradientBrush.GradientStops>

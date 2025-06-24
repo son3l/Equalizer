@@ -45,7 +45,7 @@ namespace Equalizer.Controls
         public static readonly StyledProperty<bool> SmoothingEnabledProperty =
             AvaloniaProperty.Register<SpectrumVisualizer, bool>(
                 nameof(SmoothingEnabled),
-                true);
+                true, defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
         /// <summary>
         /// Размер группировки стобликов (например было 1024, мы поставили GroupSize = 16, значит в итоге будет столбиков 64 с средним значением группы из 16 столбиков)
         /// </summary>
@@ -119,6 +119,7 @@ namespace Equalizer.Controls
 
         private float[] ApplySmoothing(Span<float> newData)
         {
+            //TODO если не хватает процессорного времени выдает NaN
             if (_smoothedValues.Length != newData.Length)
             {
                 _smoothedValues = new float[newData.Length];

@@ -41,13 +41,15 @@ namespace Equalizer.ViewModels
         /// </summary>
         [ObservableProperty]
         private DSProcessor _Processor;
+        [ObservableProperty]
+        private bool _UseSmoothing;
         /// <summary>
         /// При изменении выбранного девайса меняем в процессоре девайсы
         /// </summary>
         partial void OnSelectedDeviceChanged(MMDevice value)
         {
             if (value is not null && _CaptureDevice is not null)
-                Processor.ChangeDevices(value,_CaptureDevice);
+                Processor.ChangeDevices(value, _CaptureDevice);
         }
         public MainWindowViewModel()
         {
@@ -55,8 +57,9 @@ namespace Equalizer.ViewModels
             SpectrumValues = [];
             Processor.SpectrumCalcucatedHandler += (spectrum) =>
             {
-                SpectrumValues = [..spectrum];
+                SpectrumValues = [.. spectrum];
             };
+#if DEBUG
             //тестовый спектр
             for (int i = 0; i < 512; i++)
             {
@@ -74,6 +77,7 @@ namespace Equalizer.ViewModels
             Processor.FrequencyLines.Add(new FrequencyLine(16800, 19800) { Name = "low high" });
             Processor.FrequencyLines.Add(new FrequencyLine(19800, 21800) { Name = "mid high" });
             Processor.FrequencyLines.Add(new FrequencyLine(21800, 23800) { Name = "high high" });
+#endif
         }
         /// <summary>
         /// Запуск обработки звуука
@@ -228,44 +232,52 @@ namespace Equalizer.ViewModels
         [RelayCommand]
         private async Task OpenSettings()
         {
-            SettingsChanges result = await new SettingsWindow()
+            SettingsWindow result = new SettingsWindow()
             {
                 DataContext = new SettingsWindowViewModel(new Settings()
                 {
                     DefaultCaptureDeviceName = App.Settings.DefaultCaptureDeviceName,
                     PathToDefaultPreset = App.Settings.PathToDefaultPreset,
-                    UseOnStartupDefaultPreset = App.Settings.UseOnStartupDefaultPreset
+                    UseOnStartupDefaultPreset = App.Settings.UseOnStartupDefaultPreset,
+                    UseSmoothing = App.Settings.UseSmoothing
                 }),
                 WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
-            }
-            .ShowDialog<SettingsChanges>((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
-            //TODO сделать нормальную обработку ошибок
-            if (result != SettingsChanges.None)
-            {
-                using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.Create, FileAccess.Write);
-                await JsonSerializer.SerializeAsync(fileStream, App.Settings);
-                await fileStream.DisposeAsync();
-            }
-            if (result == SettingsChanges.DefaultCaptureDeviceName)
-            {
-                bool isStopped = false;
-                _CaptureDevice = new MMDeviceEnumerator()
-                    .EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
-                    .First(item => item.FriendlyName == App.Settings.DefaultCaptureDeviceName);
-                if (Processor.IsRunning)
-                {
-                    Processor.StopCapture();
-                    isStopped = true;
-                }
-                Processor.ChangeDevices(SelectedDevice, _CaptureDevice);
-                if (isStopped)
-                    Processor.StartCapture();
-
-            }
+            };
+            await result.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
         }
         [RelayCommand]
         private async Task Startup()
         {
+            App.SettingsChangedHandler += async (properties) =>
+            {
+                //TODO сделать нормальную обработку ошибок
+                if (properties.Any(item => item is not null))
+                {
+                    using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.Create, FileAccess.Write);
+                    await JsonSerializer.SerializeAsync(fileStream, App.Settings);
+                    await fileStream.DisposeAsync();
+                }
+                if (properties.Any(item => item == nameof(App.Settings.UseSmoothing)))
+                {
+                    UseSmoothing = App.Settings.UseSmoothing;
+                }
+                if (properties.Any(item => item == nameof(App.Settings.DefaultCaptureDeviceName)))
+                {
+                    bool isStopped = false;
+                    _CaptureDevice = new MMDeviceEnumerator()
+                        .EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active)
+                        .First(item => item.FriendlyName == App.Settings.DefaultCaptureDeviceName);
+                    if (Processor.IsRunning)
+                    {
+                        Processor.StopCapture();
+                        isStopped = true;
+                    }
+                    Processor.ChangeDevices(SelectedDevice, _CaptureDevice);
+                    if (isStopped)
+                        Processor.StartCapture();
+                }
+            };
+            UseSmoothing = App.Settings.UseSmoothing;
             if (App.Settings.UseOnStartupDefaultPreset && App.Settings.PathToDefaultPreset is not null)
             {
                 //TODO сделать нормальную обработку ошибок

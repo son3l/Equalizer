@@ -97,7 +97,7 @@
                 BorderBrush="#333"
                 BorderThickness="1"
                 CornerRadius="6">
-                <controls:SpectrumVisualizer SpectrumData="{Binding SpectrumValues}" />
+                <controls:SpectrumVisualizer SmoothingEnabled="{Binding UseSmoothing}" SpectrumData="{Binding SpectrumValues}" />
             </Border>
         </StackPanel>
     </Grid>

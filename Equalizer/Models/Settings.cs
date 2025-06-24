@@ -11,6 +11,8 @@ namespace Equalizer.Models
         private string? _PathToDefaultPreset;
         [ObservableProperty]
         private string? _DefaultCaptureDeviceName;
+        [ObservableProperty]
+        private bool _UseSmoothing;
         public Settings(MMDevice captureDevice)
         {
             DefaultCaptureDeviceName = captureDevice.DeviceFriendlyName;
@@ -30,7 +32,8 @@ namespace Equalizer.Models
             return obj is Settings
                 && (obj as Settings)?.DefaultCaptureDeviceName == DefaultCaptureDeviceName
                 && (obj as Settings)?.UseOnStartupDefaultPreset == UseOnStartupDefaultPreset
-                && (obj as Settings)?.PathToDefaultPreset == PathToDefaultPreset;
+                && (obj as Settings)?.PathToDefaultPreset == PathToDefaultPreset
+                && (obj as Settings)?.UseSmoothing == UseSmoothing;
         }
     }
     public enum SettingsChanges

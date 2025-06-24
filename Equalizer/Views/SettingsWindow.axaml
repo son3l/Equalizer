@@ -7,8 +7,8 @@
     xmlns:vm="using:Equalizer.ViewModels"
     Title="AddLineWindow"
     Width="500"
-    Height="280"
-    d:DesignHeight="280"
+    Height="320"
+    d:DesignHeight="320"
     d:DesignWidth="500"
     x:DataType="vm:SettingsWindowViewModel"
     Background="Transparent"
@@ -34,6 +34,12 @@
                 Grid.Row="1"
                 HorizontalAlignment="Center"
                 Spacing="10">
+                <CheckBox
+                    HorizontalAlignment="Center"
+                    BorderBrush="#D0D0D0"
+                    Content="Сглаживание анимации спектра"
+                    Foreground="#D0D0D0"
+                    IsChecked="{Binding Settings.UseSmoothing}" />
                 <CheckBox
                     HorizontalAlignment="Center"
                     BorderBrush="#D0D0D0"

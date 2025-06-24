@@ -16,13 +16,16 @@ namespace Equalizer
 {
     public partial class App : Application
     {
-        public static Settings Settings { get; set; }
+        public static Settings? Settings { get; set; }
+        public delegate void SettingsChanged(string[] properties);
+        public static SettingsChanged? SettingsChangedHandler { get; set; }
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
         }
         private async Task LoadSettings()
         {
+            //TODO обработка ошибок
             try
             {
                 using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.Open, FileAccess.Read);
