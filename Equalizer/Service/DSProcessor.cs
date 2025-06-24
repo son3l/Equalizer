@@ -168,6 +168,7 @@ namespace Equalizer.Service
                 {
                     for (int j = 0; j < FrequencyLines.Count; j++)
                     {
+                        //TODO самое тяжелое место для цп (20% цп времени от всего приложения)
                         if (FrequencyLines[j].From < i * _FrequencyStep && FrequencyLines[j].To > i * _FrequencyStep)
                         {
                             float gain = (float)unchecked(GetMultiplier(FrequencyLines[j].GainDecibells));
