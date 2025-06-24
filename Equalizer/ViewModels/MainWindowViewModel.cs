@@ -59,14 +59,14 @@ namespace Equalizer.ViewModels
             {
                 SpectrumValues = [.. spectrum];
             };
+            Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
+            SelectedDevice = Devices.First();
 #if DEBUG
             //тестовый спектр
             for (int i = 0; i < 512; i++)
             {
                 SpectrumValues.Add((float)new Random().NextDouble());
             }
-            Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
-            SelectedDevice = Devices.First();
             //тестовые полосы
             Processor.FrequencyLines.Add(new FrequencyLine(0, 1500) { Name = " low BASS" });
             Processor.FrequencyLines.Add(new FrequencyLine(1500, 3800) { Name = " mid BASS" });
