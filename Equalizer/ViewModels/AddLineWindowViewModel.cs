@@ -15,6 +15,6 @@ namespace Equalizer.ViewModels
         [RelayCommand]
         private void AddCommand(Window window) => window.Close(new Models.FrequencyLine(From ?? 0, To ?? 0) { Name = Name });
         [RelayCommand]
-        private void CancelCommand(Window window) => window.Close(null);
+        private static void CancelCommand(Window window) => window.Close(null);
     }
 }

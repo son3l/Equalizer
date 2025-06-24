@@ -3,6 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Equalizer"
+	xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     xmlns:vm="using:Equalizer.ViewModels"
     RequestedThemeVariant="Light">
     <!--  "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options.  -->
@@ -15,11 +16,12 @@
         <StyleInclude Source="/Styles/FrequencySliderBar.axaml" />
         <StyleInclude Source="/Styles/Buttons.axaml" />
         <StyleInclude Source="/Styles/Spectrum.axaml" />
+		<materialIcons:MaterialIconStyles />
     </Application.Styles>
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <MergeResourceInclude Source="/Styles/ComboBox.axaml" />
+                <MergeResourceInclude Source="/Styles/ComboBox.axaml"/>
                 <MergeResourceInclude Source="/Styles/ComboBoxItem.axaml" />
                 <MergeResourceInclude Source="/Styles/MenuItem.axaml" />
                 <MergeResourceInclude Source="/Styles/Menu.axaml" />

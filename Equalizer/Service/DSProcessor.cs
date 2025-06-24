@@ -14,7 +14,7 @@ namespace Equalizer.Service
     /// <summary>
     /// Экземплярный класс обработки аудио сигнала
     /// </summary>
-    public class DSProcessor : IDisposable
+    public sealed class DSProcessor : IDisposable
     {
         private WasapiCapture _CaptureDevice;
         private WasapiOut _OutDevice;
@@ -31,7 +31,7 @@ namespace Equalizer.Service
         /// <summary>
         /// Представляет собой коллекцию полос эквалайзера
         /// </summary>
-        public ObservableCollection<FrequencyLine> FrequencyLines { get; private set; }
+        public ObservableCollection<FrequencyLine>? FrequencyLines { get; private set; }
         /// <summary>
         /// Ивент который срабатывает при пересчете фрейма спектра
         /// </summary>
@@ -88,6 +88,7 @@ namespace Equalizer.Service
         {
             if (!Initialized)
             {
+
                 Initialized = true;
                 _CaptureDevice = new WasapiLoopbackCapture(captureDevice) { ShareMode = AudioClientShareMode.Shared };
                 _CaptureDevice.RecordingStopped += (s, e) =>
@@ -165,11 +166,15 @@ namespace Equalizer.Service
                 // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
                 for (int i = 0; i < FrameSize; i++)
                 {
-                    FrequencyLine Line = FrequencyLines.FirstOrDefault(
-                        item => item.From < i * _FrequencyStep && item.To > i * _FrequencyStep, _DefaultLine);
-                    float gain = (float)unchecked(GetMultiplier(Line.GainDecibells));
-                    _FFTBuffer[i].X *= gain;
-                    _FFTBuffer[i].Y *= gain;
+                    for (int j = 0; j < FrequencyLines.Count; j++)
+                    {
+                        if (FrequencyLines[j].From < i * _FrequencyStep && FrequencyLines[j].To > i * _FrequencyStep)
+                        {
+                            float gain = (float)unchecked(GetMultiplier(FrequencyLines[j].GainDecibells));
+                            _FFTBuffer[i].X *= gain;
+                            _FFTBuffer[i].Y *= gain;
+                        }
+                    }
                 }
                 // преобразуем обратно из амплитуды/частоты в время/частоты
                 FastFourierTransform.FFT(false, (int)Math.Log2(FrameSize), _FFTBuffer);
@@ -194,6 +199,7 @@ namespace Equalizer.Service
             _OutputSamples.Clear();
             _BufferedWaveProvider.AddSamples(outBuffer, 0, outSize);
             ArrayPool<byte>.Shared.Return(outBuffer, true);
+
         }
         /// <summary>
         /// Рассчитывает значения для фрейма из спектра спектра
@@ -239,10 +245,11 @@ namespace Equalizer.Service
         {
             if (waveFormat.BitsPerSample == 16)
             {
+                Span<byte> sampleBytes = stackalloc byte[4];
                 for (int i = 0; i < samples.Count; i++)
                 {
                     float clampedSample = Math.Clamp(samples[i], -1f, 1f);
-                    byte[] sampleBytes = BitConverter.GetBytes((short)clampedSample * short.MaxValue);
+                    BitConverter.TryWriteBytes(sampleBytes, (short)clampedSample * short.MaxValue);
                     outSamples[i * 2] = sampleBytes[0];
                     outSamples[(i * 2) + 1] = sampleBytes[1];
                 }
@@ -378,7 +385,7 @@ namespace Equalizer.Service
             _FFTBuffer = new Complex[FrameSize];
             _IFFTBuffer = new float[FrameSize];
             _OverlapBuffer = new float[FrameSize];
-            _OutputSamples = [];
+            _OutputSamples = new(10_000);
             _InputBuffer = new(10_000);
             FrequencyLines = [];
             _DefaultLine = new(0, 0);

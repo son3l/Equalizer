@@ -15,7 +15,7 @@ namespace Equalizer.ViewModels
         [RelayCommand]
         private void DeleteCommand(Window window) => window.Close(SelectedLines);
         [RelayCommand]
-        private void CancelCommand(Window window) => window.Close(null);
+        private static void CancelCommand(Window window) => window.Close(null);
         public DeleteLinesWindowViewModel()
         {
             Lines = [];

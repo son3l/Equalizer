@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Equalizer.Models;
 using Equalizer.Service;
 using NAudio.CoreAudioApi;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -140,17 +141,126 @@ namespace Equalizer.ViewModels
             });
             if (file is not null)
             {
-                using Stream stream = await file.OpenWriteAsync();
-                await JsonSerializer.SerializeAsync(stream, Processor.FrequencyLines.ToArray());
+                try
+                {
+                    using Stream stream = await file.OpenWriteAsync();
+                    await JsonSerializer.SerializeAsync(stream, Processor.FrequencyLines.ToArray());
+                }
+                catch (Exception)
+                {
+                    await new MessageBoxWindow("Ошибка", "Не удалось сохранить пресет, попробуйте позже", Material.Icons.MaterialIconKind.ErrorOutline)
+                    {
+                        Topmost = true,
+                        WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                    }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+                }
+                
             }
         }
+        #region Загрузка полос с файла
+        private async Task LoadLinesFormFile(IStorageFile file)
+        {
+            Stream? stream = null;
+            try
+            {
+                stream = await file.OpenReadAsync();
+                var lines = await JsonSerializer.DeserializeAsync<FrequencyLine[]>(stream);
+                if (lines is not null)
+                {
+                    Processor.FrequencyLines.Clear();
+                    foreach (var line in lines)
+                        Processor.FrequencyLines.Add(
+                            new FrequencyLine(line.From, line.To)
+                            {
+                                GainDecibells = line.GainDecibells,
+                                Name = line.Name
+                            });
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                await new MessageBoxWindow("Ошибка", "Не удалось найти файл, попробуйте еще раз", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            }
+            catch (JsonException)
+            {
+                await new MessageBoxWindow("Ошибка", "Не удалось загрузить пресет, пресет поврежден", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await new MessageBoxWindow("Ошибка", "Не удалось открыть файл пресета, файл занят другим процессом", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            }
+            finally 
+            {
+                stream?.Dispose();
+            }
+        }
+        private async Task LoadLinesFormFile(string filePath)
+        {
+            Stream? stream = null;
+            try
+            {
+                stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                var lines = await JsonSerializer.DeserializeAsync<FrequencyLine[]>(stream);
+                if (lines is not null)
+                {
+                    Processor.FrequencyLines.Clear();
+                    foreach (var line in lines)
+                        Processor.FrequencyLines.Add(
+                            new FrequencyLine(line.From, line.To)
+                            {
+                                GainDecibells = line.GainDecibells,
+                                Name = line.Name
+                            });
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                await new MessageBoxWindow("Ошибка", "Не удалось найти файл, попробуйте еще раз", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            }
+            catch (JsonException)
+            {
+                await new MessageBoxWindow("Ошибка", "Не удалось загрузить пресет, пресет поврежден", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                await new MessageBoxWindow("Ошибка", "Не удалось открыть файл пресета, файл занят другим процессом", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            }
+            finally
+            {
+                stream?.Dispose();
+            }
+        }
+        #endregion
         /// <summary>
         ///  Загружает сериализованные полосы из файла и перетирает текущие полосы
         /// </summary>
         [RelayCommand]
         private async Task LoadLines()
         {
-            //TODO сделать нормальную обработку ошибок
             IReadOnlyList<IStorageFile> file = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
             {
                 SuggestedStartLocation = await (Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
@@ -170,19 +280,7 @@ namespace Equalizer.ViewModels
             });
             if (file is not null && file.Count != 0)
             {
-                using Stream stream = await file[0].OpenReadAsync();
-                var lines = await JsonSerializer.DeserializeAsync<FrequencyLine[]>(stream);
-                if (lines is not null)
-                {
-                    Processor.FrequencyLines.Clear();
-                    foreach (var line in lines)
-                        Processor.FrequencyLines.Add(
-                            new FrequencyLine(line.From, line.To)
-                            {
-                                GainDecibells = line.GainDecibells,
-                                Name = line.Name
-                            });
-                }
+                await LoadLinesFormFile(file[0]);
             }
 
         }
@@ -230,9 +328,9 @@ namespace Equalizer.ViewModels
             }
         }
         [RelayCommand]
-        private async Task OpenSettings()
+        private static async Task OpenSettings()
         {
-            SettingsWindow result = new SettingsWindow()
+            SettingsWindow result = new()
             {
                 DataContext = new SettingsWindowViewModel(new Settings()
                 {
@@ -250,12 +348,32 @@ namespace Equalizer.ViewModels
         {
             App.SettingsChangedHandler += async (properties) =>
             {
-                //TODO сделать нормальную обработку ошибок
                 if (properties.Any(item => item is not null))
                 {
-                    using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.Create, FileAccess.Write);
-                    await JsonSerializer.SerializeAsync(fileStream, App.Settings);
-                    await fileStream.DisposeAsync();
+                    try
+                    {
+                        using Stream fileStream = new FileStream(Path.Combine(Environment.CurrentDirectory, "default.settings"), FileMode.Create, FileAccess.Write);
+                        await JsonSerializer.SerializeAsync(fileStream, App.Settings);
+                        await fileStream.DisposeAsync();
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        await new MessageBoxWindow("Ошибка", "Не удалось найти файл настроек, файл восстановлен из текущих настроек", Material.Icons.MaterialIconKind.ErrorOutline)
+                        {
+                            Topmost = true,
+                            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                        }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+                        await App.MakeNewSettings(App.Settings);
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        await new MessageBoxWindow("Ошибка", "Не удалось открыть файл пресета, файл занят другим процессом", Material.Icons.MaterialIconKind.ErrorOutline)
+                        {
+                            Topmost = true,
+                            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                        }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+                    }
+                    
                 }
                 if (properties.Any(item => item == nameof(App.Settings.UseSmoothing)))
                 {
@@ -280,25 +398,7 @@ namespace Equalizer.ViewModels
             UseSmoothing = App.Settings.UseSmoothing;
             if (App.Settings.UseOnStartupDefaultPreset && App.Settings.PathToDefaultPreset is not null)
             {
-                //TODO сделать нормальную обработку ошибок
-                try
-                {
-                    using Stream stream = new FileStream(App.Settings.PathToDefaultPreset, FileMode.Open, FileAccess.Read);
-                    var lines = await JsonSerializer.DeserializeAsync<FrequencyLine[]>(stream);
-                    if (lines is not null)
-                    {
-                        Processor.FrequencyLines.Clear();
-                        foreach (var line in lines)
-                            Processor.FrequencyLines.Add(
-                                new FrequencyLine(line.From, line.To)
-                                {
-                                    GainDecibells = line.GainDecibells,
-                                    Name = line.Name
-                                });
-                    }
-                }
-                catch
-                { }
+                await LoadLinesFormFile(App.Settings.PathToDefaultPreset);
             }
             MMDeviceCollection devices = new MMDeviceEnumerator().EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active);
             if (App.Settings.DefaultCaptureDeviceName is null)

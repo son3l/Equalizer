@@ -3,16 +3,16 @@ using System;
 
 namespace Equalizer.Models
 {
-    public partial class FrequencyLine : ObservableObject
+    public partial class FrequencyLine(double from, double to) : ObservableObject
     {
         /// <summary>
         /// С какой частоты обрабатывать сигнал
         /// </summary>
-        public double From { get; private set; }
+        public double From { get; private set; } = from;
         /// <summary>
         /// По какую частоту обрабатывать сигнал
         /// </summary>
-        public double To { get; private set; }
+        public double To { get; private set; } = to;
         private string? _Name;
         /// <summary>
         /// Представляет собой имя полосы, если не задано передает просто промежуток
@@ -27,11 +27,7 @@ namespace Equalizer.Models
         /// </summary>
         [ObservableProperty]
         private int _GainDecibells;
-        public FrequencyLine(double from, double to)
-        {
-            From = from;
-            To = to;
-        }
+
         public override bool Equals(object? obj)
         {
             if(obj is null) return false;
