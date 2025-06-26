@@ -89,7 +89,7 @@ namespace Equalizer
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 DisableAvaloniaDataAnnotationValidation();
-                desktop.MainWindow = new MainWindow
+                desktop.MainWindow = new MainWindowViewTest//MainWindow
                 {
                     DataContext = new MainWindowViewModel(),
                 };
