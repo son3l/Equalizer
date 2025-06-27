@@ -15,14 +15,27 @@
     <Design.DataContext>
         <vm:MainWindowViewModel />
     </Design.DataContext>
-    <Grid Background="#e6e7e8" RowDefinitions="30,100,*">
-        <Menu Grid.Row="0">
-            <MenuItem Header="Полосы">
-                <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
-                <MenuItem Command="{Binding SaveLinesCommand}" Header="Сохранить" />
-                <MenuItem Command="{Binding LoadLinesCommand}" Header="Загрузить" />
-            </MenuItem>
-        </Menu>
+	<Interaction.Behaviors>
+		<EventTriggerBehavior EventName="Closing">
+			<InvokeCommandAction Command="{Binding ClosingCommand}" />
+		</EventTriggerBehavior>
+		<EventTriggerBehavior EventName="Loaded">
+			<InvokeCommandAction Command="{Binding StartupCommand}" />
+		</EventTriggerBehavior>
+	</Interaction.Behaviors>
+    <Grid Background="DarkGray" RowDefinitions="30,100,*">
+		<Menu Grid.Row="0" Margin="5">
+			<MenuItem Header="Полосы">
+				<MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
+				<MenuItem Command="{Binding OpenDeleteLinesCommand}" Header="Удалить" />
+				<MenuItem Command="{Binding OpenAddLinesCommand}" Header="Добавить" />
+			</MenuItem>
+			<MenuItem Header="Пресеты">
+				<MenuItem Command="{Binding SaveLinesCommand}" Header="Сохранить" />
+				<MenuItem Command="{Binding LoadLinesCommand}" Header="Загрузить" />
+			</MenuItem>
+			<MenuItem Command="{Binding OpenSettingsCommand}" Header="Настройки" />
+		</Menu>
         <StackPanel
             Grid.Row="1"
             Margin="10"
@@ -45,8 +58,25 @@
                     Command="{Binding StopCommand}"
                     Content="Stop" />
             </StackPanel>
-                <controls:VolumeSlider Width="300" Height="200" />
+            <controls:VolumeSlider
+                Width="300"
+                Height="200"
+                FontSize="30"
+				Foreground="DarkCyan"
+				Value="{Binding Volume}">
+				<controls:VolumeSlider.BackgroundBarBrush>
+					<SolidColorBrush Color="Black" Opacity="5"/>
+				</controls:VolumeSlider.BackgroundBarBrush>
+				<controls:VolumeSlider.FrontBarBrush>
+					<LinearGradientBrush StartPoint="1000,0" Opacity="5" EndPoint="0,1000">
+						<LinearGradientBrush.GradientStops>
+							<GradientStop Offset="0" Color="Red" />
+							<GradientStop Offset="1" Color="Lime" />
+						</LinearGradientBrush.GradientStops>
+					</LinearGradientBrush>
+				</controls:VolumeSlider.FrontBarBrush>
+				</controls:VolumeSlider>
         </StackPanel>
-        
+
     </Grid>
 </Window>

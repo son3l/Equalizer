@@ -44,6 +44,15 @@ namespace Equalizer.ViewModels
         private DSProcessor _Processor;
         [ObservableProperty]
         private bool _UseSmoothing;
+        //-------------------------------------------------------------------------
+        [ObservableProperty]
+        private double _Volume;
+        partial void OnVolumeChanged(double value)
+        {
+            if(Processor.Initialized)
+            Processor.ChangeVolume(value);
+        }
+        //-------------------------------------------------------------------------
         /// <summary>
         /// При изменении выбранного девайса меняем в процессоре девайсы
         /// </summary>

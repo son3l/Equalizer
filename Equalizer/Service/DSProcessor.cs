@@ -363,11 +363,11 @@ namespace Equalizer.Service
         /// Меняет громкость устройства рендера(выходного)
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
-        public void ChangeVolume(int Volume)
+        public void ChangeVolume(double Volume)
         {
             if (Volume < 0 || Volume > 100)
                 throw new ArgumentException("Volume must be positive and less or equal than 100");
-            _OutDevice.Volume = Volume / 100f;
+            _OutDevice.Volume = (float)Volume / 100;
         }
         public void Dispose()
         {
