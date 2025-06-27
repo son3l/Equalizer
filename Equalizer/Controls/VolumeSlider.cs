@@ -85,6 +85,18 @@ namespace Equalizer.Controls
             get => GetValue(FontSizeProperty);
             set => SetValue(FontSizeProperty, value);
         }
+        /// <summary>
+        /// Размер текста
+        /// </summary>
+        public static readonly StyledProperty<bool> VisibleStepsProperty =
+            AvaloniaProperty.Register<SpectrumVisualizer, bool>(
+                nameof(VisibleSteps),
+                true);
+        public bool VisibleSteps
+        {
+            get => GetValue(VisibleStepsProperty);
+            set => SetValue(VisibleStepsProperty, value);
+        }
         public VolumeSlider() { }
         public override void Render(DrawingContext context)
         {
@@ -98,6 +110,26 @@ namespace Equalizer.Controls
             //текст значения
             if (TextVisible)
                 DrawValueText(context);
+            //шаги слайдера
+            if(VisibleSteps)
+            DrawValueSteps(context);
+        }
+        private void DrawValueSteps(DrawingContext context)
+        {
+            int steps = 10; 
+            var pen = new Pen(FrontBarBrush, 1);
+            for (int i = 0; i <= steps; i++)
+            {
+                double angle = 180 + i * (180.0 / steps);
+                double rad = angle * Math.PI / 180;
+                // Внешняя точка на дуге
+                double x1 = _CenterPoint.X + (_Radius - 10) * Math.Cos(rad);
+                double y1 = _CenterPoint.Y + (_Radius - 10) * Math.Sin(rad);
+                // Внутренняя точка (чуть ближе к центру)
+                double x2 = _CenterPoint.X + (_Radius - 20) * Math.Cos(rad);
+                double y2 = _CenterPoint.Y + (_Radius - 20) * Math.Sin(rad);
+                context.DrawLine(pen, new Point(x1, y1), new Point(x2, y2));
+            }
         }
         private void DrawThumb(DrawingContext context)
         {
