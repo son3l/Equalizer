@@ -10,6 +10,7 @@
     <Style Selector="controls|SpectrumVisualizer">
         <Setter Property="Margin" Value="3" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="BarSpacing" Value="2" />
         <Setter Property="GroupSize" Value="16" />
         <Setter Property="MinBarHeight" Value="3" />

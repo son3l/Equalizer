@@ -7,11 +7,11 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Equalizer.ViewModels"
     Title="Equalizer"
-    Width="1064"
-    Height="650"
-    MinWidth="350"
-    MinHeight="650"
-    d:DesignHeight="650"
+    Width="950"
+    Height="680"
+    MinWidth="450"
+    MinHeight="680"
+    d:DesignHeight="680"
     d:DesignWidth="950"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/avalonia-logo.ico"
@@ -27,7 +27,7 @@
             <InvokeCommandAction Command="{Binding StartupCommand}" />
         </EventTriggerBehavior>
     </Interaction.Behaviors>
-    <Grid Background="#1E1E1E" RowDefinitions="20,*,*">
+    <Grid Background="#1E1E1E" RowDefinitions="20,520,*">
         <Menu Grid.Row="0" Margin="5">
             <MenuItem Header="Полосы">
                 <MenuItem Command="{Binding DiscardAllLinesCommand}" Header="Сбросить" />
@@ -44,29 +44,51 @@
             Grid.Row="1"
             Margin="20"
             Spacing="12">
-            <ComboBox
-                Width="210"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                ItemsSource="{Binding Devices}"
-                SelectedItem="{Binding SelectedDevice}" />
-            <StackPanel
-                Grid.Row="2"
-                HorizontalAlignment="Center"
-                Orientation="Horizontal"
-                Spacing="10">
-                <Button
-                    Width="100"
-                    Height="32"
-                    Command="{Binding PlayCommand}">
-                    <TextBlock HorizontalAlignment="Center" Text="Play" />
-                </Button>
-                <Button
-                    Width="100"
-                    Height="32"
-                    Command="{Binding StopCommand}">
-                    <TextBlock HorizontalAlignment="Center" Text="Stop" />
-                </Button>
+            <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                <StackPanel VerticalAlignment="Center" Spacing="10">
+                    <ComboBox
+                        Width="210"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        ItemsSource="{Binding Devices}"
+                        SelectedItem="{Binding SelectedDevice}" />
+                    <StackPanel
+                        Grid.Row="2"
+                        HorizontalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="10">
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Command="{Binding PlayCommand}">
+                            <TextBlock HorizontalAlignment="Center" Text="Play" />
+                        </Button>
+                        <Button
+                            Width="100"
+                            Height="32"
+                            Command="{Binding StopCommand}">
+                            <TextBlock HorizontalAlignment="Center" Text="Stop" />
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+                <controls:VolumeSlider
+                    Width="200"
+                    Height="100"
+                    FontSize="30"
+                    Foreground="#abaeb1"
+                    Value="{Binding Volume}">
+                    <controls:VolumeSlider.BackgroundBarBrush>
+                        <SolidColorBrush Opacity="5" Color="#555" />
+                    </controls:VolumeSlider.BackgroundBarBrush>
+                    <controls:VolumeSlider.FrontBarBrush>
+                        <LinearGradientBrush Opacity="5" StartPoint="200,0" EndPoint="10,100">
+                            <LinearGradientBrush.GradientStops>
+                                <GradientStop Offset="0" Color="#396f93" />
+                                <GradientStop Offset="1" Color="#D0D0D0" />
+                            </LinearGradientBrush.GradientStops>
+                        </LinearGradientBrush>
+                    </controls:VolumeSlider.FrontBarBrush>
+                </controls:VolumeSlider>
             </StackPanel>
             <ScrollViewer HorizontalScrollBarVisibility="Visible">
                 <ItemsControl HorizontalAlignment="Center" ItemsSource="{Binding Processor.FrequencyLines}">
@@ -90,16 +112,18 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <Border
-                Height="100"
-                Margin="0,12,0,0"
-                Background="Black"
-                BorderBrush="#333"
-                BorderThickness="1"
-                CornerRadius="6">
-                <controls:SpectrumVisualizer SmoothingEnabled="{Binding UseSmoothing}" SpectrumData="{Binding SpectrumValues}" />
-            </Border>
         </StackPanel>
+        <Border
+            Grid.Row="2"
+            Margin="20,0,20,20"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Stretch"
+            Background="Black"
+            BorderBrush="#333"
+            BorderThickness="1"
+            CornerRadius="6">
+            <controls:SpectrumVisualizer SmoothingEnabled="{Binding UseSmoothing}" SpectrumData="{Binding SpectrumValues}" />
+        </Border>
     </Grid>
 
 </Window>

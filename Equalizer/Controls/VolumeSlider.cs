@@ -2,7 +2,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Media.TextFormatting;
 using System;
 
 namespace Equalizer.Controls
@@ -62,6 +61,19 @@ namespace Equalizer.Controls
             set => SetValue(ValueProperty, value);
         }
         /// <summary>
+        /// Отображать ли текст
+        /// </summary>
+        public static readonly StyledProperty<bool> TextVisibleProperty =
+            AvaloniaProperty.Register<SpectrumVisualizer, bool>(
+                nameof(TextVisible),
+                true,
+                defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
+        public bool TextVisible
+        {
+            get => GetValue(TextVisibleProperty);
+            set => SetValue(TextVisibleProperty, value);
+        }
+        /// <summary>
         /// Размер текста
         /// </summary>
         public static readonly StyledProperty<double> FontSizeProperty =
@@ -84,7 +96,8 @@ namespace Equalizer.Controls
             //кружок за который тянем
             DrawThumb(context);
             //текст значения
-            DrawValueText(context);
+            if (TextVisible)
+                DrawValueText(context);
         }
         private void DrawThumb(DrawingContext context)
         {

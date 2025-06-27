@@ -72,6 +72,8 @@ namespace Equalizer.ViewModels
             Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
             SelectedDevice = Devices.First();
 #if DEBUG
+            //тестовая громкость
+            Volume = 75;
             //тестовый спектр
             for (int i = 0; i < 512; i++)
             {
