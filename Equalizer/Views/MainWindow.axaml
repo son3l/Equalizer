@@ -14,7 +14,7 @@
     d:DesignHeight="680"
     d:DesignWidth="950"
     x:DataType="vm:MainWindowViewModel"
-    Icon="/Assets/avalonia-logo.ico"
+    Icon="/Assets/ico2.ico"
     mc:Ignorable="d">
     <Design.DataContext>
         <vm:MainWindowViewModel />

@@ -9,10 +9,15 @@
     <SignAssembly>False</SignAssembly>
     <Configurations>Debug;Release;х64</Configurations>
     <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon>Assets\ico2.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\ico2.ico" />
   </ItemGroup>
 
   <ItemGroup>
