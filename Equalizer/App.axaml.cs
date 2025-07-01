@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Equalizer.Models;
 using Equalizer.ViewModels;
 using Equalizer.Views;
@@ -23,6 +24,7 @@ namespace Equalizer
         {
             AvaloniaXamlLoader.Load(this);
         }
+        #region Загрузка настроек
         private static async Task LoadSettings()
         {
             try
@@ -83,6 +85,7 @@ namespace Equalizer
             await JsonSerializer.SerializeAsync(fileStream, Settings);
             await fileStream.FlushAsync();
         }
+        #endregion
         public override void OnFrameworkInitializationCompleted()
         {
             var _ = LoadSettings();
@@ -94,7 +97,14 @@ namespace Equalizer
                     DataContext = new MainWindowViewModel(),
                 };
             }
-
+            Dispatcher.UIThread.UnhandledException += async (_,_) => 
+            {
+                await new MessageBoxWindow("Ошибка", "При работе приложения произошла неизвестная ошибка, приложение будет закрыто", Material.Icons.MaterialIconKind.ErrorOutline)
+                {
+                    Topmost = true,
+                    WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+                }.ShowDialog((Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
+            };
             base.OnFrameworkInitializationCompleted();
         }
 

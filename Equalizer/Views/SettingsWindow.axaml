@@ -3,6 +3,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:Equalizer.ViewModels"
     Title="AddLineWindow"
@@ -34,12 +35,20 @@
                 Grid.Row="1"
                 HorizontalAlignment="Center"
                 Spacing="10">
-                <CheckBox
+                <StackPanel
                     HorizontalAlignment="Center"
-                    BorderBrush="#D0D0D0"
-                    Content="Сглаживание анимации спектра"
-                    Foreground="#D0D0D0"
-                    IsChecked="{Binding Settings.UseSmoothing}" />
+                    Orientation="Horizontal"
+                    Spacing="10">
+                    <CheckBox
+                        BorderBrush="#D0D0D0"
+                        Content="Сглаживание анимации спектра"
+                        Foreground="#D0D0D0"
+                        IsChecked="{Binding Settings.UseSmoothing}" />
+                    <Border ToolTip.Tip="Сглаживание анимации накладывает дополнительную нагрузку на ЦП, если у вас процессор с малой производ. советую откл. сглаживание">
+                        <materialIcons:MaterialIcon Foreground="#D0D0D0" Kind="QuestionMarkCircleOutline" />
+                    </Border>
+
+                </StackPanel>
                 <CheckBox
                     HorizontalAlignment="Center"
                     BorderBrush="#D0D0D0"

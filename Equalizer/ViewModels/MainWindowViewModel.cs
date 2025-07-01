@@ -384,7 +384,6 @@ namespace Equalizer.ViewModels
                             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
                         }.ShowDialog((Avalonia.Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow);
                     }
-                    
                 }
                 if (properties.Any(item => item == nameof(App.Settings.UseSmoothing)))
                 {

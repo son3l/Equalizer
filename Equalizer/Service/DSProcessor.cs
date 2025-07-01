@@ -22,10 +22,6 @@ namespace Equalizer.Service
         private bool _IsDisposed;
         private bool _IsOutDeviceRunning;
         private bool _IsCaptureDeviceRunning;
-        /// <summary>
-        /// Дефолт линия, используется если не найдено нужных линий
-        /// </summary>
-        private readonly FrequencyLine _DefaultLine;
         public bool Initialized { get; private set; }
         public bool IsRunning => _IsCaptureDeviceRunning || _IsOutDeviceRunning;
         /// <summary>
@@ -78,9 +74,34 @@ namespace Equalizer.Service
         /// </summary>
         private int _SpectrumFramesCount;
         /// <summary>
-        ///  Очередь выполнения обработки звука
+        /// Очередь выполнения обработки звука
         /// </summary>
         private readonly ProcessingThreadQueue _ProcessingQueue;
+        /// <summary>
+        /// Массив индексов полос для быстрого доступа при обработке звука
+        /// </summary>
+        private readonly FrequencyLine[] _FrequencyLinesIndex;
+        /// <summary>
+        /// Кэш для расчетов мультипликатора (расчет одного мультипликатора 3% цп времени)
+        /// </summary>
+        private readonly Dictionary<int, double> _CachedMultiplier;
+        /// <summary>
+        /// Пересчитывает индексы для линий
+        /// </summary>
+        public void BuildIndexForLines()
+        {
+            for (int i = 0; i < FrameSize; i++)
+            {
+                float frequency = i * _FrequencyStep;
+                foreach (FrequencyLine line in FrequencyLines)
+                {
+                    if (line.From < frequency && line.To > frequency)
+                    {
+                        _FrequencyLinesIndex[i] = line;
+                    }
+                }
+            }
+        }
         /// <summary>
         /// Инициализирует устройство вывода и устройство для захвата
         /// </summary>
@@ -111,6 +132,12 @@ namespace Equalizer.Service
                 {
                     _IsOutDeviceRunning = false;
                 };
+                // пересчитываем индексы при изменении коллекции
+                FrequencyLines.CollectionChanged += (_, _) =>
+                {
+                    BuildIndexForLines();
+                };
+                BuildIndexForLines();
             }
         }
         /// <summary>
@@ -166,15 +193,11 @@ namespace Equalizer.Service
                 // находим линию которая содержит децибелы и границы частот и если нашлась такая то получаем мультипликатор на который умножаем амплитуду
                 for (int i = 0; i < FrameSize; i++)
                 {
-                    for (int j = 0; j < FrequencyLines.Count; j++)
+                    if (_FrequencyLinesIndex[i] is not null)
                     {
-                        //TODO самое тяжелое место для цп (20% цп времени от всего приложения)
-                        if (FrequencyLines[j].From < i * _FrequencyStep && FrequencyLines[j].To > i * _FrequencyStep)
-                        {
-                            float gain = (float)unchecked(GetMultiplier(FrequencyLines[j].GainDecibells));
-                            _FFTBuffer[i].X *= gain;
-                            _FFTBuffer[i].Y *= gain;
-                        }
+                        float gain = (float)unchecked(GetMultiplier(_FrequencyLinesIndex[i].GainDecibells));
+                        _FFTBuffer[i].X *= gain;
+                        _FFTBuffer[i].Y *= gain;
                     }
                 }
                 // преобразуем обратно из амплитуды/частоты в время/частоты
@@ -234,9 +257,15 @@ namespace Equalizer.Service
         /// <summary>
         /// Преобразует децибелы в мультипликатор для увеличения/уменьшения амплитуды сигнала
         /// </summary>
-        private static double GetMultiplier(int decibells)
+        private double GetMultiplier(int decibells)
         {
-            return Math.Pow(10, decibells / 20d);
+            if (!_CachedMultiplier.TryGetValue(decibells, out double cachedMultiplier))
+            {
+                double multiplier = Math.Pow(10, decibells / 20d);
+                _CachedMultiplier.Add(decibells,multiplier);
+                return multiplier;
+            }
+            return cachedMultiplier;
         }
         #region Конвертации
         /// <summary>
@@ -386,11 +415,12 @@ namespace Equalizer.Service
             _FFTBuffer = new Complex[FrameSize];
             _IFFTBuffer = new float[FrameSize];
             _OverlapBuffer = new float[FrameSize];
+            _FrequencyLinesIndex = new FrequencyLine[FrameSize];
             _OutputSamples = new(10_000);
             _InputBuffer = new(10_000);
-            FrequencyLines = [];
-            _DefaultLine = new(0, 0);
             _ProcessingQueue = new();
+            _CachedMultiplier = [];
+            FrequencyLines = [];
         }
         /// <summary>
         /// Возвращает список устройств доступных для вывода аудио сигнала
