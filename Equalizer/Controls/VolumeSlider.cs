@@ -97,7 +97,10 @@ namespace Equalizer.Controls
             get => GetValue(VisibleStepsProperty);
             set => SetValue(VisibleStepsProperty, value);
         }
-        public VolumeSlider() { }
+        static VolumeSlider() 
+        {
+            AffectsRender<VolumeSlider>(ValueProperty);
+        }
         public override void Render(DrawingContext context)
         {
             base.Render(context);

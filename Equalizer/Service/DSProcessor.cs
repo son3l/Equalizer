@@ -398,6 +398,10 @@ namespace Equalizer.Service
                 throw new ArgumentException("Volume must be positive and less or equal than 100");
             _OutDevice.Volume = (float)Volume / 100;
         }
+        public int GetVolume()
+        {
+            return (int)(_OutDevice.Volume * 100);
+        }
         public void Dispose()
         {
             if (!_IsDisposed && Initialized)

@@ -44,22 +44,26 @@ namespace Equalizer.ViewModels
         private DSProcessor _Processor;
         [ObservableProperty]
         private bool _UseSmoothing;
-        //-------------------------------------------------------------------------
         [ObservableProperty]
         private double _Volume;
+        /// <summary>
+        /// При изменении громкости меняем на выходном устройстве
+        /// </summary>
         partial void OnVolumeChanged(double value)
         {
             if(Processor.Initialized)
             Processor.ChangeVolume(value);
         }
-        //-------------------------------------------------------------------------
         /// <summary>
         /// При изменении выбранного девайса меняем в процессоре девайсы
         /// </summary>
         partial void OnSelectedDeviceChanged(MMDevice value)
         {
             if (value is not null && _CaptureDevice is not null)
+            {
                 Processor.ChangeDevices(value, _CaptureDevice);
+                Volume = Processor.GetVolume();
+            }
         }
         public MainWindowViewModel()
         {
@@ -69,8 +73,6 @@ namespace Equalizer.ViewModels
             {
                 SpectrumValues = [.. spectrum];
             };
-            Devices = [.. DSProcessor.GetDevices().Where(item => !item.FriendlyName.Contains("Virtual"))];
-            SelectedDevice = Devices.First();
 #if DEBUG
             //тестовая громкость
             Volume = 75;
@@ -414,6 +416,8 @@ namespace Equalizer.ViewModels
             if (App.Settings.DefaultCaptureDeviceName is null)
                 App.Settings.DefaultCaptureDeviceName = devices.First().FriendlyName;
             _CaptureDevice = devices.First(item => item.FriendlyName == App.Settings.DefaultCaptureDeviceName);
+            Devices = [.. DSProcessor.GetDevices().Where(item => item.FriendlyName != App.Settings.DefaultCaptureDeviceName)];
+            SelectedDevice = Devices.First();
         }
         /// <summary>
         /// Диспозит текущий процессор при выходе из приложения
