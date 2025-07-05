@@ -7,21 +7,21 @@
 ## 🛠 Основные возможности
 
 - Графический интерфейс с управлением кривой эквалайзера
-<img src="Assets/mainWindow.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/mainWindow.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Регулировка уровня нескольких полос (gain, частота, Q)  
-<img src="Assets/2.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/2.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Отображение отклика в реальном времени  
-<img src="Assets/3.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/3.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Добавление своих полос
-<img src="Assets/5.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/5.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Удаление своих полос
-<img src="Assets/4.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/4.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Сохранение пресетов
-<img src="Assets/7.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/7.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Загрузка пресетов
-<img src="Assets/6.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/6.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 - Изменение устройства захвата, анимации спектра и загрузки дефолтного пресета при запуске
-<img src="Assets/8.gif" width="400" style="border-radius: 12px;" />
+<img src="Equalizer/Assets/8.gif" width="400" style="border-radius: 12px; margin-top: 8px;" />
 ---
 
 ## 🚀 Начало работы
